@@ -1,187 +1,155 @@
 # MiHomes — Development Phase Plan
 
-Total estimated duration: ~9 weeks across 6 phases.
-Each phase ends with a working, testable increment.
+Total estimated duration: ~6 weeks across 5 phases.
+One codebase, one language (TypeScript), one deployment.
 
 ---
 
 ## Phase 1: Foundation (Week 1)
 
-**Goal:** Working Django backend — auth, homes, and permission system.
+**Goal:** Working app shell — auth, homes, permissions, global layout.
 
-- [ ] Django 5.1 project scaffold with split settings (base / dev / prod)
-- [ ] SQLite database configuration
-- [ ] Custom User model (username, email, full name, avatar URL)
-- [ ] JWT auth via SimpleJWT: register, login, token refresh, me, logout
-- [ ] Home model + CRUD API (`/api/v1/homes/`)
-- [ ] HomeMember model + members API (`/homes/{id}/members/`)
-- [ ] 4-tier role system: owner, admin, manager, viewer
-- [ ] `HomeFilterMixin` — auto-scope all querysets to user's homes
-- [ ] Role permission classes: `IsHomeOwner`, `IsHomeAdmin`, `IsHomeManager`, `IsHomeMember`
-- [ ] `TimestampMixin` for created_at / updated_at
-- [ ] `.env` setup + `django-environ` config
+- [ ] Next.js 14 project scaffold (App Router, TypeScript, Tailwind CSS)
+- [ ] Prisma + SQLite setup (`prisma init`, `DATABASE_URL=file:./dev.db`)
+- [ ] `User`, `Account`, `Session` models
+- [ ] NextAuth.js credentials provider (username + password, bcrypt)
+- [ ] Register page + login page
+- [ ] `Home` + `HomeMember` models + migrations
+- [ ] `src/lib/prisma.ts` — Prisma client singleton
+- [ ] `src/lib/auth.ts` — NextAuth config
+- [ ] `src/lib/permissions.ts` — `requireSession()`, `requireHomeMember()`, `requireHomeRole()`
+- [ ] `src/actions/auth.ts` — register, updateProfile, changePassword
+- [ ] `src/actions/homes.ts` — CRUD + members
+- [ ] Global layout: sidebar, topbar, home selector dropdown
+- [ ] Overview page shell (home summary cards)
 
-**Phase 1 Deliverable:** Can register, login, create homes, add members, assign roles. All API responses scoped to the authenticated user's homes.
+**Phase 1 Deliverable:** Can register, log in, create homes, add members, assign roles. Layout renders. All data scoped to authenticated user.
 
 ---
 
 ## Phase 2: Task Management + Calendar (Week 2)
 
-**Goal:** Full task and event management with kanban, list, and calendar views.
+**Goal:** Full task board, list view, calendar, and completion logs.
 
-- [ ] Task model + CRUD API (`/api/v1/tasks/`)
-- [ ] TaskAssignee M2M (tasks assigned to People)
-- [ ] Kanban endpoint: tasks grouped by status (`todo`, `inprogress`, `review`, `done`)
-- [ ] Task list endpoint: sortable + filterable (`?status=`, `?priority=`, `?completed=`)
-- [ ] `PATCH /tasks/{id}/move/` — update status (drag-and-drop support)
-- [ ] Event model + CRUD API (`/api/v1/events/`)
-- [ ] Calendar endpoint (`/api/v1/calendar/`) — merged tasks + events for a date range
-- [ ] `CompletionLog` model in `shared/models.py` (polymorphic: entity_type + entity_id)
-- [ ] Completion Log API (`/api/v1/completion-logs/`) — create, list, delete
-- [ ] Completion logs wired to events (track each occurrence)
+- [ ] `Task` + `TaskAssignee` models + migrations
+- [ ] `src/actions/tasks.ts` — CRUD + move (status update)
+- [ ] Kanban board page (`/tasks`) — drag-and-drop columns
+- [ ] Task list page — sortable table, active/completed tabs
+- [ ] Board / List view toggle
+- [ ] Task create/edit modal (title, description, home, assignees, priority, dates)
+- [ ] `Event` model + migrations
+- [ ] `src/actions/events.ts` — CRUD + `getCalendarData`
+- [ ] Calendar page (`/calendar`) — monthly grid, task pins + event blocks, color-coded by home
+- [ ] Event create/edit modal
+- [ ] `CompletionLog` model + migrations
+- [ ] `src/actions/completion-logs.ts` — create, list, delete
+- [ ] `<CompletionLog>` reusable component (collapsed/expanded, add form, reverse chronological)
+- [ ] Completion logs wired to events
 
-**Phase 2 Deliverable:** Tasks fully manageable; events created; calendar returns merged view; completion logs working.
+**Phase 2 Deliverable:** Tasks fully manageable in kanban and list views. Calendar renders events + tasks. CompletionLog component reusable.
 
 ---
 
 ## Phase 3: Estate Features (Weeks 3–4)
 
-**Goal:** People, vendors, maintenance, all 8 home info sections, and sensitive field security.
+**Goal:** People, vendors, maintenance, all 8 home info sections, sensitive field security.
 
 ### Week 3 — People + Vendors + Maintenance
-- [ ] People model + API (`/api/v1/people/`)
-- [ ] People mentions endpoint (`/people/mentions/?home_id=&q=`) for @mention autocomplete
-- [ ] Vendor model + VendorHome M2M + API (`/api/v1/vendors/`)
-- [ ] Maintenance task model + API (`/api/v1/maintenance/`)
-- [ ] Dynamic status computation: `overdue`, `due_soon`, `on_track`, `no_schedule`
-- [ ] Completion logs wired to maintenance: `next_due` auto-recalculates on log add/delete
-- [ ] Frequency → next_due calculation helper (weekly, biweekly, monthly, etc.)
-- [ ] Daily management command: `check_maintenance` (creates notifications for overdue + due soon)
+- [ ] `Person` model + migrations
+- [ ] `src/actions/people.ts` — CRUD + `searchPeople` (for @mention autocomplete)
+- [ ] People page (`/people`) — card grid, role filter tabs, add/edit modal
+- [ ] `Vendor` + `VendorHome` models + migrations
+- [ ] `src/actions/vendors.ts` — CRUD, multi-home tagging
+- [ ] Vendors page (`/vendors`) — card grid, home filter, add/edit modal
+- [ ] `MaintenanceTask` model + migrations
+- [ ] `src/actions/maintenance.ts` — CRUD + computed status
+- [ ] Dynamic status helper: `overdue` / `due_soon` / `on_track` / `no_schedule`
+- [ ] `nextDue` auto-recalculation on completion log add/delete
+- [ ] Maintenance page — status pills, completion log per task
 
 ### Week 4 — Home Info Sections + Security
-- [ ] Service providers model + API
-- [ ] Lock codes model + API (code field excluded from all standard responses)
-- [ ] `POST /lock-codes/{id}/reveal/` — decrypt + return code; write access log; manager+ only
-- [ ] AES-256 field encryption via `django-encrypted-model-fields`
-- [ ] `AccessLog` model — read-only, no update/delete exposed
-- [ ] Internet & network model + API (Wi-Fi password same security pattern)
-- [ ] `POST /network/{id}/reveal/` for Wi-Fi password
-- [ ] Appliance warranties model + API
-- [ ] Daily management command: `check_warranties` (notifications at 30 and 7 days)
-- [ ] Important contacts model + API
-- [ ] Utility bills model + API
-- [ ] Smart home systems model + API
-- [ ] Emergency info model + API
+- [ ] All 8 home info models + migrations:
+  `ServiceProvider`, `LockCode`, `InternetNetwork`, `ApplianceWarranty`,
+  `ImportantContact`, `UtilityBill`, `SmartHomeSystem`, `EmergencyInfo`
+- [ ] `src/lib/encryption.ts` — `encryptField()` / `decryptField()` (AES-256-GCM)
+- [ ] `AccessLog` model + migrations (read-only — no update/delete in actions)
+- [ ] `src/actions/home-info.ts` — CRUD for all 8 sections
+- [ ] `revealLockCode(id)` — decrypt + write AccessLog + return `{ value, maskAfter }`
+- [ ] `revealWifiPassword(id)` — same pattern
+- [ ] `<SecureCode>` component — masked display, reveal button, 30s auto-hide timer, clipboard copy
+- [ ] Home detail page (`/homes/[id]`) — pill/tab navigation, all 8 sections
 - [ ] Completion logs wired to all 8 sections
 
-**Phase 3 Deliverable:** All estate data fully manageable; sensitive fields encrypted; access logging in place; maintenance and warranty alerts firing.
+**Phase 3 Deliverable:** All estate data manageable. Lock codes + Wi-Fi passwords encrypted, access logged, masked in UI.
 
 ---
 
 ## Phase 4: Communication (Week 5)
 
-**Goal:** Activity log with @mentions, bulletins, protocols, lists, documents, notifications.
+**Goal:** Activity log, bulletins, protocols, lists, documents, notifications.
 
-- [ ] ActivityLog model + API (`/api/v1/activity/`)
-- [ ] @mention parsing: extract `@Name` from content → resolve to Person or Vendor ID → store structured mention data
-- [ ] Bulletin model + API (`/api/v1/bulletins/`) + @mentions
-- [ ] Bulletin posted notification trigger
-- [ ] @mention notification trigger (fire on activity log create)
-- [ ] Protocol model + API (`/api/v1/protocols/`) + completion log
-- [ ] List + ListItem model + API (`/api/v1/lists/`) with toggle-done
-- [ ] Document model + file upload API (`/api/v1/documents/`) — multipart/form-data
-- [ ] Files stored under `media/documents/{home_id}/`
-- [ ] Notification model + API (`/api/v1/notifications/`) — list, mark read, mark all read
-- [ ] Remaining daily management commands: task due-date alerts (3 days), event reminders (1 day)
-- [ ] Access log API (`/api/v1/access-logs/`) — read-only, owner/admin only
-
-**Phase 4 Deliverable:** Full communication layer; all notifications working; documents uploadable; all backend features complete.
-
----
-
-## Phase 5: Frontend (Weeks 6–8)
-
-**Goal:** Complete Next.js web UI connected to the API.
-
-### Week 6 — Auth + Shell + Overview + Tasks
-- [ ] Next.js 14 project scaffold (App Router) + Tailwind CSS
-- [ ] Auth flow: login page, register page, JWT storage, auto-refresh, protected routes
-- [ ] Global layout: sidebar nav, top bar with global home selector dropdown, notification bell
-- [ ] Overview dashboard: home summary cards, bulletin board, upcoming tasks panel, recent activity panel
-- [ ] Tasks page: Board/List toggle
-- [ ] Kanban board (drag-and-drop columns → PATCH `/tasks/{id}/move/`)
-- [ ] Task list (sortable table, active/completed tabs)
-- [ ] Task create/edit modal
-
-### Week 7 — Calendar + People + Vendors + Maintenance + Documents
-- [ ] Calendar page: monthly grid, tasks as yellow pins, events as color-coded blocks
-- [ ] Event create/edit modal with `CompletionLog` component
-- [ ] People directory (card grid, role filter tabs, add/edit modal)
-- [ ] Vendor directory (card grid, home filter, add/edit modal)
-- [ ] Maintenance page with dynamic status pills
-- [ ] Documents page (table view, upload form, download links)
-
-### Week 8 — Home Info + Communication
-- [ ] Home detail page with pill/tab navigation across all 8 sections
-- [ ] All 8 home info section UIs with add/edit modals
-- [ ] `CompletionLog` reusable component (collapsed "▸ History (3)", expandable, add form, delete per entry)
-- [ ] `SecureCode` component: masked display, reveal button, 30s auto-hide timer, clipboard copy (no visual reveal)
-- [ ] Wi-Fi password UI (same `SecureCode` component)
-- [ ] Activity log page (@mention badge rendering, add entry form)
-- [ ] Bulletin board UI + @mention rendering
-- [ ] Protocols page + Lists (checklists with interactive checkboxes + progress indicator)
-- [ ] Notification dropdown (mark read, mark all read)
+- [ ] `ActivityLog` model + migrations
+- [ ] `src/actions/activity.ts` — create (with @mention parsing), list, delete
+- [ ] @mention parsing: extract `@Name` → resolve to Person/Vendor → store structured data
+- [ ] Activity log page — @mention badge rendering (blue = vendor, pink = person)
+- [ ] `Bulletin` model + migrations
+- [ ] `src/actions/bulletins.ts` — CRUD + notify all home members on create
+- [ ] Bulletin board UI on overview dashboard
+- [ ] `Protocol` model + migrations
+- [ ] `src/actions/protocols.ts` — CRUD + completion log
+- [ ] Protocols page
+- [ ] `List` + `ListItem` models + migrations
+- [ ] `src/actions/lists.ts` — CRUD + toggle done
+- [ ] Lists page — interactive checkboxes, progress indicator
+- [ ] `Document` model + migrations
+- [ ] `src/actions/documents.ts` — upload (FormData), list, delete
+- [ ] Documents page — table view, upload form, download links
+- [ ] `Notification` model + migrations
+- [ ] `src/actions/notifications.ts` — create (internal), list, markRead, markAllRead
+- [ ] Notification bell in topbar (unread badge, dropdown)
+- [ ] Notification triggers wired into relevant actions
+- [ ] `GET /api/cron/notifications` route — daily checks (maintenance, warranties, task due dates, event reminders)
 - [ ] Access log page (owner/admin only, under home settings)
 
-**Phase 5 Deliverable:** Fully functional web app — all features usable through the UI.
+**Phase 4 Deliverable:** Full communication layer. All notifications working. Every feature complete.
 
 ---
 
-## Phase 6: Polish + Deploy (Week 9)
+## Phase 5: Polish + Deploy (Week 6)
 
-**Goal:** Tested, secure, and deployed to production.
+**Goal:** Tested, production-ready, deployed.
 
-- [ ] Backend test suite (Django TestCase; real SQLite DB, no mocks)
-  - Auth endpoints
-  - Home + membership + role permission matrix
+- [ ] Test coverage:
+  - Auth (register, login, session)
+  - Permission matrix (all 4 roles × sensitive actions)
   - Sensitive field reveal + access logging
-  - Completion log + next_due recalculation
+  - Completion log + nextDue recalculation
   - Notification triggers
-- [ ] Frontend: component tests + E2E (Playwright)
+- [ ] E2E tests (Playwright): happy paths for each major feature
 - [ ] Security checklist:
-  - No sensitive fields in standard API responses
-  - Cross-home scoping verified for all endpoints
-  - JWT expiry + refresh flow tested
-  - Role permission enforcement tested per endpoint
-  - Encryption at rest verified
-- [ ] Production Django settings (DEBUG=False, ALLOWED_HOSTS, HTTPS, secure cookies)
-- [ ] SQLite WAL mode enabled for concurrent reads
-- [ ] Daily SQLite backup script
-- [ ] Deployment to Railway or VPS
-- [ ] Next.js production build + deploy
+  - No encrypted fields in standard responses
+  - Cross-home scoping verified (attempt to access another home's data returns 403)
+  - Role enforcement per action
+- [ ] Production environment variables set
+- [ ] SQLite WAL mode enabled (`PRAGMA journal_mode=WAL`)
+- [ ] Daily SQLite backup (cron → copy `dev.db` to backup location)
+- [ ] Deploy to Vercel or Railway
 - [ ] Domain setup (mihomes.app)
 - [ ] Error tracking (Sentry)
 
-**Phase 6 Deliverable:** Production-ready MiHomes — deployed, tested, monitored.
+**Phase 5 Deliverable:** Production-ready MiHomes — deployed, monitored, backed up.
 
 ---
-
-## Priority Reference
-
-| Label | Meaning |
-|-------|---------|
-| P0 | Launch — Phases 1–4 (backend) |
-| P1 | Core — Phase 5 (frontend) |
-| P2 | Enhance — post-launch features |
-| P3 | Polish — future nice-to-haves |
 
 ## Tech Decisions Log
 
 | Decision | Rationale |
 |----------|-----------|
-| SQLite over PostgreSQL | Zero infrastructure, zero config, sufficient for 4 concurrent users |
-| SimpleJWT over OAuth | No external dependencies; straightforward username/password to start |
-| Single `completion_logs` table (polymorphic) | Avoids 9+ duplicate tables; efficient with composite index on (entity_type, entity_id) |
-| `django-encrypted-model-fields` | Transparent AES-256 without custom query rewrites |
-| POST reveal endpoint over query param | Cleaner audit trail — a POST is an intentional action, not a side effect of a GET |
-| Django management commands for notifications | No background worker needed at this scale; run via cron |
+| Next.js only (no separate backend) | One codebase, one language, one deploy — maximally AI-friendly |
+| Server actions over REST API | No HTTP layer to design; type-safe end-to-end; less surface area |
+| Prisma over raw SQL | Declarative schema, auto-generated types, migration tooling |
+| SQLite | Zero infrastructure, zero config, perfect for 4 concurrent users |
+| NextAuth credentials | Simple username/password to start; swap provider later without changing the rest of the app |
+| AES-256-GCM in `src/lib/encryption.ts` | Standard Node crypto, no extra dependency |
+| Synchronous notification triggers | No background worker needed at this scale; simpler, fewer moving parts |
+| Vercel Cron for daily checks | Free tier covers daily frequency; zero additional infrastructure |

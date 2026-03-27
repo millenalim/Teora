@@ -4,91 +4,76 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**MiHomes** is a centralized estate management platform for teams managing multiple residential properties. It provides built-in task management, scheduling, and estate-specific features — no external service dependencies.
+**MiHomes** is a centralized estate management platform for teams managing multiple residential properties. Built as a single Next.js app — no separate backend, no API layer.
 
 - **Target users:** 4 team members managing 4 homes
 - **Platform:** Web (Next.js) → Mobile (React Native, future)
-- **Backend:** Django 5 + DRF + SQLite
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Django 5.1 + Django REST Framework |
-| Database | SQLite |
-| Frontend | Next.js 14 (App Router) + Tailwind CSS |
-| Auth | Username/password + JWT (SimpleJWT) |
-| File Storage | Local filesystem / Django media |
-| Hosting | Railway or single VPS |
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Database | SQLite via Prisma ORM |
+| Auth | NextAuth.js (credentials provider) |
+| Styling | Tailwind CSS |
+| Hosting | Vercel or Railway |
 
 ## Repo Structure
 
 ```
-MiHomes/
-├── backend/            # Django project (see Django Project Structure in prd.md)
-├── frontend/           # Next.js project
-├── docs/
-│   ├── prd.md          # Full product requirements (v3)
-│   ├── schema.sql      # Database schema
-│   ├── api-endpoints.md
-│   ├── architecture.md
-│   └── phase-plan.md
-├── README.md
-└── CLAUDE.md
+mihomes/
+├── prisma/
+│   └── schema.prisma        # All models — single source of truth
+├── src/
+│   ├── app/                 # Pages (App Router)
+│   ├── actions/             # Server actions (all data mutations)
+│   ├── components/          # React components
+│   ├── lib/                 # prisma.ts, auth.ts, permissions.ts, encryption.ts
+│   └── types/
+├── uploads/                 # Uploaded files (gitignored)
+├── docs/                    # Reference docs
+├── .env
+└── package.json
 ```
 
 ## Key Docs
 
 - Product requirements: `docs/prd.md`
-- Database schema: `docs/schema.sql`
-- API reference: `docs/api-endpoints.md`
+- Prisma schema reference: `docs/schema.prisma`
+- Server actions reference: `docs/api-endpoints.md`
 - Architecture: `docs/architecture.md`
 - Phase plan: `docs/phase-plan.md`
 
 ## Getting Started
 
-**Backend (Django):**
 ```bash
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python manage.py migrate
-python manage.py runserver
-```
-
-**Frontend (Next.js):**
-```bash
-cd frontend
 npm install
-cp .env.local.example .env.local
+cp .env.example .env        # fill in secrets
+npx prisma migrate dev
 npm run dev
 ```
 
-**Tests:**
+## Tests
+
 ```bash
-# Backend
-cd backend && python manage.py test
-
-# Single test
-python manage.py test apps.homes.tests.test_models.HomeModelTest
-
-# Frontend
-cd frontend && npm test
+npm test                    # unit tests
+npm run test:e2e            # Playwright E2E
 ```
 
-**Linting:**
-```bash
-# Backend
-cd backend && ruff check . && ruff format .
+## Linting
 
-# Frontend
-cd frontend && npm run lint
+```bash
+npm run lint
 ```
 
 ## Development Notes
 
-- All API querysets are auto-scoped to the requesting user's homes via `HomeFilterMixin`
-- Sensitive fields (lock codes, Wi-Fi passwords) are AES-256 encrypted at rest — never returned in standard API responses
-- Completion logs use a polymorphic pattern: single `completion_logs` table with `entity_type` + `entity_id`
-- Notification triggers live in `backend/apps/notifications/`
+- All data mutations go through server actions in `src/actions/` — never raw Prisma calls in components
+- All actions call `requireSession()` and `requireHomeMember()` before touching data — no exceptions
+- Sensitive fields (lock codes, Wi-Fi passwords) are AES-256 encrypted via `src/lib/encryption.ts` — never returned in standard reads
+- Completion logs use a polymorphic pattern: single `CompletionLog` model with `entityType` + `entityId`
+- `nextDue` on `MaintenanceTask` recalculates automatically when a completion log is added or deleted
+- Notification triggers fire synchronously inside the relevant server action
+- Daily notification checks run via `GET /api/cron/notifications`

@@ -6,112 +6,103 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      CLIENT LAYER                       │
+│                      BROWSER                            │
 │                                                         │
-│   Next.js 14 (App Router)        React Native (future)  │
-│   Web Browser                    iOS + Android          │
+│   Next.js 14 (App Router)                               │
+│   React Server Components + Client Components           │
+│   Tailwind CSS                                          │
 └────────────────────────┬────────────────────────────────┘
-                         │ HTTPS
+                         │ Server Actions (no HTTP round-trip)
 ┌────────────────────────▼────────────────────────────────┐
-│                   API LAYER  (Railway / VPS)             │
+│               NEXT.JS SERVER  (Vercel / Railway)        │
 │                                                         │
-│   Django 5.1 + DRF                                      │
-│   REST API (/api/v1/)                                   │
-│                                                         │
-│   ┌──────────────┐  ┌─────────────────┐                │
-│   │ Auth         │  │ Business Logic  │                │
-│   │ (SimpleJWT)  │  │ (Viewsets,      │                │
-│   │              │  │  serializers,   │                │
-│   │              │  │  permissions)   │                │
-│   └──────────────┘  └─────────────────┘                │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│   SQLite                                                │
-│                                                         │
-│   - All MiHomes data                                    │
-│   - Encrypted sensitive fields                          │
-│   - Audit logs                                          │
-│   - Single file, zero infrastructure                    │
+│   ┌────────────────┐  ┌──────────────────────────────┐ │
+│   │  NextAuth.js   │  │  Server Actions              │ │
+│   │  (session +    │  │  src/actions/*.ts            │ │
+│   │   credentials) │  │  (auth, homes, tasks, etc.)  │ │
+│   └────────────────┘  └──────────────────────────────┘ │
+│                                  │                      │
+│                        ┌─────────▼──────────┐          │
+│                        │  Prisma ORM         │          │
+│                        │  src/lib/prisma.ts  │          │
+│                        └─────────┬──────────┘          │
+└──────────────────────────────────┼─────────────────────┘
+                                   │
+┌──────────────────────────────────▼─────────────────────┐
+│   SQLite (dev.db)                                       │
+│   Single file, zero infrastructure                      │
 └─────────────────────────────────────────────────────────┘
 ```
 
----
-
-## Django Project Structure
-
-```
-backend/
-├── manage.py
-├── requirements.txt
-├── db.sqlite3
-├── .env
-├── media/                    # Uploaded files
-│
-├── config/
-│   ├── settings/
-│   │   ├── base.py
-│   │   ├── development.py
-│   │   └── production.py
-│   ├── urls.py
-│   └── wsgi.py
-│
-├── apps/
-│   ├── accounts/             # User model, JWT auth (register/login/me)
-│   ├── homes/                # Home, HomeMember
-│   ├── tasks/                # Task, TaskAssignee
-│   ├── events/               # Event
-│   ├── people/               # Person (resident/staff/contact)
-│   ├── vendors/              # Vendor, VendorHome
-│   ├── maintenance/          # MaintenanceTask (dynamic status, next_due)
-│   ├── home_info/            # ServiceProvider, LockCode, InternetNetwork,
-│   │                         # ApplianceWarranty, ImportantContact, UtilityBill,
-│   │                         # SmartHomeSystem, EmergencyInfo, AccessLog
-│   ├── activity/             # ActivityLog
-│   ├── bulletins/            # Bulletin
-│   ├── protocols/            # Protocol
-│   ├── lists/                # List, ListItem
-│   ├── documents/            # Document (file upload)
-│   └── notifications/        # Notification + trigger logic
-│
-└── shared/
-    ├── models.py             # CompletionLog (polymorphic)
-    ├── mixins.py             # HomeFilterMixin, TimestampMixin
-    └── pagination.py
-```
+Everything runs in one process. No separate API server, no message queue, no background workers.
 
 ---
 
-## Frontend Structure
+## Project Structure
 
 ```
-frontend/
+mihomes/
+├── prisma/
+│   ├── schema.prisma          # All models — single source of truth
+│   └── migrations/            # Auto-generated by Prisma
+│
 ├── src/
-│   ├── app/                  # Next.js App Router
+│   ├── app/
 │   │   ├── (auth)/
-│   │   │   ├── login/
-│   │   │   └── register/
-│   │   └── (dashboard)/
-│   │       ├── page.tsx              # Overview
-│   │       ├── tasks/
-│   │       ├── calendar/
-│   │       ├── people/
-│   │       ├── vendors/
-│   │       ├── maintenance/
-│   │       ├── documents/
-│   │       ├── activity/
-│   │       └── homes/
-│   │           └── [id]/             # Home detail + all 8 info sections
+│   │   │   ├── login/page.tsx
+│   │   │   └── register/page.tsx
+│   │   ├── (dashboard)/
+│   │   │   ├── layout.tsx             # Sidebar + topbar + home selector
+│   │   │   ├── page.tsx               # Overview dashboard
+│   │   │   ├── tasks/page.tsx
+│   │   │   ├── calendar/page.tsx
+│   │   │   ├── people/page.tsx
+│   │   │   ├── vendors/page.tsx
+│   │   │   ├── maintenance/page.tsx
+│   │   │   ├── documents/page.tsx
+│   │   │   ├── activity/page.tsx
+│   │   │   └── homes/[id]/
+│   │   │       ├── page.tsx           # Home detail
+│   │   │       └── [section]/page.tsx # Lock codes, warranties, etc.
+│   │   └── api/
+│   │       └── cron/
+│   │           └── notifications/route.ts  # Daily notification checks
+│   │
+│   ├── actions/               # All data mutations (server actions)
+│   │   ├── auth.ts
+│   │   ├── homes.ts
+│   │   ├── tasks.ts
+│   │   ├── events.ts
+│   │   ├── people.ts
+│   │   ├── vendors.ts
+│   │   ├── maintenance.ts
+│   │   ├── home-info.ts       # All 8 home info sections + access logging
+│   │   ├── completion-logs.ts
+│   │   ├── activity.ts
+│   │   ├── bulletins.ts
+│   │   ├── protocols.ts
+│   │   ├── lists.ts
+│   │   ├── documents.ts
+│   │   └── notifications.ts
+│   │
 │   ├── components/
-│   │   ├── ui/                       # Shared primitives (Button, Modal, etc.)
-│   │   ├── completion-log/           # Reusable CompletionLog widget
-│   │   ├── secure-code/              # SecureCode (mask/reveal/timer/copy)
-│   │   ├── home-selector/            # Global property filter dropdown
-│   │   └── ...feature components
+│   │   ├── ui/                # Shared primitives (Button, Modal, Input, etc.)
+│   │   ├── completion-log/    # <CompletionLog> reusable widget
+│   │   ├── secure-code/       # <SecureCode> mask/reveal/timer/copy
+│   │   └── home-selector/     # Global property filter dropdown
+│   │
 │   ├── lib/
-│   │   └── api.ts                    # Typed API client (fetch wrapper)
-│   └── types/                        # Shared TypeScript types
-└── public/
+│   │   ├── prisma.ts          # Prisma client singleton
+│   │   ├── auth.ts            # NextAuth config (credentials provider)
+│   │   ├── permissions.ts     # requireHomeRole(), requireHomeMember()
+│   │   └── encryption.ts      # encryptField() / decryptField() (AES-256)
+│   │
+│   └── types/
+│       └── index.ts           # Shared TypeScript types
+│
+├── uploads/                   # Uploaded documents (gitignored)
+├── .env
+└── package.json
 ```
 
 ---
@@ -119,126 +110,122 @@ frontend/
 ## Authentication Flow
 
 ```
-User submits username + password to POST /api/v1/auth/login/
+User submits login form
         │
         ▼
-Django validates credentials via authenticate()
+NextAuth credentials provider
+  → validates username + password against DB
+  → bcrypt.compare(password, user.passwordHash)
         │
         ▼
-SimpleJWT issues token pair:
-  - access token  (30 min)
-  - refresh token (7 days)
+NextAuth creates session (JWT or database session)
+Session cookie set (httpOnly)
         │
         ▼
-Client stores tokens (httpOnly cookie or memory)
-Includes access token in Authorization: Bearer <token> header
-        │
-        ▼
-On 401 response → client calls POST /auth/token/refresh/
-  → new access token issued silently
+Server components call auth() to get session
+Server actions call requireSession() to guard mutations
 ```
 
 ---
 
-## Security Architecture
+## Server Actions Pattern
 
-### Sensitive Field Encryption
+Server actions replace the REST API layer. Each action follows this pattern:
 
-Lock codes and Wi-Fi passwords are encrypted using `django-encrypted-model-fields`:
+```typescript
+// src/actions/tasks.ts
+"use server"
 
-```
-Write path:
-  plaintext → AES-256 encryption (Django model field) → ciphertext stored in SQLite
+export async function createTask(data: CreateTaskInput) {
+  const session = await requireSession()           // throws if not logged in
+  await requireHomeMember(session.user.id, data.homeId) // throws if no access
 
-Read path (standard):
-  ciphertext field → excluded from serializer output entirely
+  const task = await prisma.task.create({ data })
 
-Read path (reveal):
-  POST /lock-codes/{id}/reveal/  (manager+ only)
-    → ciphertext → AES-256 decryption → plaintext in response
-    → access_log entry written (user, entity, timestamp, IP)
-    → response includes mask_after timestamp (now + 30s)
-```
+  // Fire notifications synchronously
+  await notifyAssignees(task)
 
-The encryption key is stored in the environment variable `ENCRYPTION_KEY` and never in source code.
-
-### API Query Scoping
-
-All viewsets inherit `HomeFilterMixin` from `shared/mixins.py`:
-
-```python
-def get_queryset(self):
-    return super().get_queryset().filter(
-        home__memberships__user=self.request.user
-    )
+  revalidatePath("/tasks")
+  return task
+}
 ```
 
-This prevents cross-home data leakage at the ORM level — a user can only ever see records belonging to homes they are a member of.
+Data fetching in server components:
 
-### Role Permission Classes
-
-Defined in `shared/permissions.py`, applied per-action on viewsets:
-
-```
-IsHomeOwner      → owner role only
-IsHomeAdmin      → admin or owner
-IsHomeManager    → manager, admin, or owner
-IsHomeMember     → any member (viewer+)
+```typescript
+// src/app/(dashboard)/tasks/page.tsx
+export default async function TasksPage() {
+  const tasks = await getTasks(homeId)  // direct Prisma query, no HTTP
+  return <KanbanBoard tasks={tasks} />
+}
 ```
 
-### Access Log (Read-Only Audit)
+---
 
-Every reveal of a lock code or Wi-Fi password writes an `AccessLog` entry with:
-- User ID + username
-- Entity type + entity ID
-- IP address
-- Timestamp
+## Permission System
 
-The `AccessLog` model has no update or delete methods exposed — enforced at the viewset level. Accessible to owners and admins under home settings.
+Defined in `src/lib/permissions.ts`:
+
+```typescript
+// Role hierarchy: owner > admin > manager > viewer
+const ROLE_RANK = { owner: 4, admin: 3, manager: 2, viewer: 1 }
+
+export async function requireHomeMember(userId, homeId) { ... }
+export async function requireHomeRole(userId, homeId, minRole) { ... }
+```
+
+Used inside every server action that touches home-scoped data. All Prisma queries are explicitly scoped with `where: { homeId }` — no cross-home leakage is possible.
+
+---
+
+## Sensitive Field Encryption
+
+`src/lib/encryption.ts` wraps Node's `crypto` module:
+
+```typescript
+// AES-256-GCM
+export function encryptField(plaintext: string): string  // → base64 ciphertext
+export function decryptField(ciphertext: string): string // → plaintext
+```
+
+The encryption key is stored in `ENCRYPTION_KEY` env var (never in source).
+
+- Lock codes and Wi-Fi passwords are encrypted on write, never returned in standard reads
+- `revealLockCode(id)` / `revealWifiPassword(id)` decrypt and write an `AccessLog` entry
+- The client receives `{ value, maskAfter }` and re-masks after 30 seconds
 
 ---
 
 ## Notification System
 
-Notifications are triggered synchronously at the point of action (no background queue needed at this scale):
+Notifications are triggered synchronously inside server actions — no background worker needed:
 
-| Trigger | When fired |
-|---------|-----------|
-| Task assigned | On task create/update when assignees change |
-| Task due soon | Daily management command at 8:00 AM |
-| Event reminder | Daily management command at 8:00 AM |
-| Maintenance overdue | Daily management command at 8:00 AM |
-| Maintenance due soon | Daily management command at 8:00 AM |
-| Warranty expiring | Daily management command at 8:00 AM |
-| Bulletin posted | On bulletin create |
-| @mention in activity | On activity log create |
+```
+createTask(data)
+  → creates task
+  → calls createNotification() for each assignee
+  → revalidates page cache
+```
 
-Daily checks run via a Django management command (`python manage.py send_notifications`) scheduled by the host (Railway cron or VPS cron job).
+Daily checks (maintenance overdue, warranty expiry, due-date reminders) run via:
+- **Vercel:** `vercel.json` cron job → `GET /api/cron/notifications`
+- **Railway / VPS:** External cron (crontab) → same route
 
 ---
 
 ## Deployment
 
-| Component | Platform | Notes |
-|-----------|----------|-------|
-| Django API + frontend proxy | Railway or VPS | Single service |
-| SQLite | Same server as Django | Single file, backed up daily |
-| Media files | Same server as Django | Served via Django in dev; nginx in prod |
-| Next.js | Vercel or same VPS | Static export or Node server |
-| Domain | mihomes.app | DNS → hosting provider |
+| Option | Setup |
+|--------|-------|
+| **Vercel** | `vercel deploy`; SQLite via persistent volume or swap to Turso (SQLite edge) |
+| **Railway** | Deploy as Node service; SQLite file on persistent disk |
+| **VPS** | `npm run build && npm start`; nginx reverse proxy; SQLite on disk |
 
-### Environment Variables (Backend)
+### Environment Variables
 
 ```
-SECRET_KEY=
-DEBUG=False
-ENCRYPTION_KEY=          # AES-256 key for sensitive fields
-ALLOWED_HOSTS=
-CORS_ALLOWED_ORIGINS=
-```
-
-### Environment Variables (Frontend)
-
-```
-NEXT_PUBLIC_API_URL=
+DATABASE_URL="file:./dev.db"
+NEXTAUTH_SECRET=               # random string, min 32 chars
+NEXTAUTH_URL=                  # e.g. https://mihomes.app
+ENCRYPTION_KEY=                # 32-byte hex string for AES-256
 ```

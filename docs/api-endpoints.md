@@ -1,248 +1,230 @@
-# MiHomes — API Endpoints Reference
+# MiHomes — Server Actions Reference
 
-Base URL: `/api/v1/`
+MiHomes uses Next.js server actions instead of a REST API. Data fetching happens in server components; mutations happen via server actions in `src/actions/`.
 
-All endpoints require `Authorization: Bearer <access_token>` unless noted.
-All list endpoints support `?home_id=<id>` for filtering (global property selector).
-Pagination: `?page=1&page_size=20` (default page_size: 20).
+All actions verify the session via `auth()` from NextAuth and scope data to the user's homes via `requireHomeMember()`.
 
 ---
 
-## Auth
+## Auth (`src/actions/auth.ts`)
 
-| Method | Path | Description | Auth required |
-|--------|------|-------------|---------------|
-| POST | `/auth/register/` | Register new user | No |
-| POST | `/auth/login/` | Login; returns JWT pair | No |
-| POST | `/auth/token/refresh/` | Refresh access token | No |
-| GET | `/auth/me/` | Current user profile | Yes |
-| PATCH | `/auth/me/` | Update profile (name, email, avatar) | Yes |
-| POST | `/auth/me/password/` | Change password | Yes |
-| POST | `/auth/logout/` | Blacklist refresh token | Yes |
+| Action | Description |
+|--------|-------------|
+| `register(data)` | Create user account; returns session |
+| `login(credentials)` | Validate username + password; creates session |
+| `logout()` | Destroy session |
+| `updateProfile(data)` | Update name, email, avatar |
+| `changePassword(data)` | Validate old password, set new one |
 
----
-
-## Homes
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/homes/` | List all homes for current user |
-| POST | `/homes/` | Create home |
-| GET | `/homes/{id}/` | Home detail |
-| PATCH | `/homes/{id}/` | Update home (admin+ only) |
-| DELETE | `/homes/{id}/` | Delete home (owner only) |
-| GET | `/homes/{id}/members/` | List home members |
-| POST | `/homes/{id}/members/` | Add member (admin+ only) |
-| PATCH | `/homes/{id}/members/{user_id}/` | Update member role (admin+ only) |
-| DELETE | `/homes/{id}/members/{user_id}/` | Remove member (admin+ only) |
-| GET | `/homes/{id}/summary/` | Task/vendor/event/maintenance counts for dashboard card |
+Auth pages use NextAuth's built-in `signIn()` / `signOut()` on the client.
 
 ---
 
-## Tasks
+## Homes (`src/actions/homes.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/tasks/` | List tasks; filter by `?home_id=`, `?status=`, `?priority=`, `?completed=` |
-| POST | `/tasks/` | Create task |
-| GET | `/tasks/{id}/` | Task detail |
-| PATCH | `/tasks/{id}/` | Update task |
-| DELETE | `/tasks/{id}/` | Delete task |
-| PATCH | `/tasks/{id}/move/` | Update status (kanban drag-drop) |
-
----
-
-## Events
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/events/` | List events; filter by `?home_id=`, `?month=YYYY-MM` |
-| POST | `/events/` | Create event |
-| GET | `/events/{id}/` | Event detail |
-| PATCH | `/events/{id}/` | Update event |
-| DELETE | `/events/{id}/` | Delete event |
-
-### Calendar endpoint (merged view)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/calendar/` | Tasks + events for a date range; filter by `?home_id=`, `?start=YYYY-MM-DD`, `?end=YYYY-MM-DD` |
-
-Returns a combined list of tasks (with dates) and events, each with a `type` field (`"task"` or `"event"`).
+| Action | Description |
+|--------|-------------|
+| `getHomes()` | All homes for current user |
+| `getHome(id)` | Single home + membership check |
+| `getHomeSummary(id)` | Task/event/maintenance counts for dashboard card |
+| `createHome(data)` | Create home; creator becomes owner |
+| `updateHome(id, data)` | Update (admin+ only) |
+| `deleteHome(id)` | Delete (owner only) |
+| `getMembers(homeId)` | List members with roles |
+| `addMember(homeId, userId, role)` | Add member (admin+ only) |
+| `updateMemberRole(homeId, userId, role)` | Change role (admin+ only) |
+| `removeMember(homeId, userId)` | Remove member (admin+ only) |
 
 ---
 
-## Documents
+## Tasks (`src/actions/tasks.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/documents/` | List documents; filter by `?home_id=`, `?category=` |
-| POST | `/documents/` | Upload file + store metadata (multipart/form-data) |
-| GET | `/documents/{id}/` | Document detail |
-| PATCH | `/documents/{id}/` | Update metadata |
-| DELETE | `/documents/{id}/` | Delete file + record |
-
----
-
-## People
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/people/` | List people; filter by `?home_id=`, `?role=` |
-| POST | `/people/` | Create person |
-| GET | `/people/{id}/` | Person detail |
-| PATCH | `/people/{id}/` | Update person |
-| DELETE | `/people/{id}/` | Delete person |
-| GET | `/people/mentions/` | Search for @mention autocomplete (`?home_id=&q=`) |
+| Action | Description |
+|--------|-------------|
+| `getTasks(homeId, filters?)` | List tasks; filter by status, priority, completed |
+| `getKanbanBoard(homeId)` | Tasks grouped by status column |
+| `getTask(id)` | Single task with assignees |
+| `createTask(data)` | Create task + notify assignees |
+| `updateTask(id, data)` | Update task |
+| `moveTask(id, status)` | Update status (kanban drag-drop) |
+| `deleteTask(id)` | Delete task |
 
 ---
 
-## Vendors
+## Events (`src/actions/events.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/vendors/` | List vendors; filter by `?home_id=`, `?service_type=` |
-| POST | `/vendors/` | Create vendor |
-| GET | `/vendors/{id}/` | Vendor detail |
-| PATCH | `/vendors/{id}/` | Update vendor |
-| DELETE | `/vendors/{id}/` | Delete vendor |
+| Action | Description |
+|--------|-------------|
+| `getEvents(homeId, filters?)` | List events; filter by month |
+| `getEvent(id)` | Single event |
+| `createEvent(data)` | Create event |
+| `updateEvent(id, data)` | Update event |
+| `deleteEvent(id)` | Delete event |
+| `getCalendarData(homeId, start, end)` | Merged tasks + events for a date range (for calendar view) |
 
----
-
-## Maintenance
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/maintenance/` | List tasks; filter by `?home_id=`, `?status=` |
-| POST | `/maintenance/` | Create maintenance task |
-| GET | `/maintenance/{id}/` | Task detail (includes computed `status` field) |
-| PATCH | `/maintenance/{id}/` | Update task |
-| DELETE | `/maintenance/{id}/` | Delete task |
-
-The `status` field is computed on read: `overdue`, `due_soon`, `on_track`, or `no_schedule`.
+Each item in `getCalendarData` includes a `kind` field: `"task"` or `"event"`.
 
 ---
 
-## Home Info Sections
+## Documents (`src/actions/documents.ts`)
 
-All sections follow the same pattern: `GET /`, `POST /`, `GET /{id}/`, `PATCH /{id}/`, `DELETE /{id}/`.
-All support `?home_id=` filtering.
+| Action | Description |
+|--------|-------------|
+| `getDocuments(homeId, filters?)` | List documents; filter by category |
+| `getDocument(id)` | Single document |
+| `uploadDocument(formData)` | Upload file to `/uploads/` + save record |
+| `updateDocument(id, data)` | Update metadata |
+| `deleteDocument(id)` | Delete file + record |
 
-| Section | Base Path |
+File uploads use `FormData` passed to the server action.
+
+---
+
+## People (`src/actions/people.ts`)
+
+| Action | Description |
+|--------|-------------|
+| `getPeople(homeId, filters?)` | List; filter by role |
+| `getPerson(id)` | Single person |
+| `createPerson(data)` | Create person |
+| `updatePerson(id, data)` | Update person |
+| `deletePerson(id)` | Delete person |
+| `searchPeople(homeId, query)` | Search by name for @mention autocomplete |
+
+---
+
+## Vendors (`src/actions/vendors.ts`)
+
+| Action | Description |
+|--------|-------------|
+| `getVendors(homeId?)` | List; filter by home |
+| `getVendor(id)` | Single vendor |
+| `createVendor(data)` | Create vendor |
+| `updateVendor(id, data)` | Update vendor |
+| `deleteVendor(id)` | Delete vendor |
+
+---
+
+## Maintenance (`src/actions/maintenance.ts`)
+
+| Action | Description |
+|--------|-------------|
+| `getMaintenanceTasks(homeId)` | List tasks with computed status |
+| `getMaintenanceTask(id)` | Single task |
+| `createMaintenanceTask(data)` | Create task |
+| `updateMaintenanceTask(id, data)` | Update task |
+| `deleteMaintenanceTask(id)` | Delete task |
+
+Computed `status` field returned on every task: `overdue` | `due_soon` | `on_track` | `no_schedule`.
+
+---
+
+## Home Info Sections (`src/actions/home-info.ts`)
+
+All 8 sections follow the same pattern: `get{Section}(homeId)`, `create{Section}(data)`, `update{Section}(id, data)`, `delete{Section}(id)`.
+
+| Section | Functions |
 |---------|-----------|
-| Service Providers | `/service-providers/` |
-| Lock Codes | `/lock-codes/` |
-| Internet & Network | `/network/` |
-| Appliance Warranties | `/warranties/` |
-| Important Contacts | `/important-contacts/` |
-| Utility Bills | `/utilities/` |
-| Smart Home Systems | `/smart-home/` |
-| Emergency Info | `/emergency-info/` |
+| Service Providers | `getServiceProviders`, `createServiceProvider`, `updateServiceProvider`, `deleteServiceProvider` |
+| Lock Codes | `getLockCodes`, `createLockCode`, `updateLockCode`, `deleteLockCode`, `revealLockCode` |
+| Internet & Network | `getNetworks`, `createNetwork`, `updateNetwork`, `deleteNetwork`, `revealWifiPassword` |
+| Appliance Warranties | `getWarranties`, `createWarranty`, `updateWarranty`, `deleteWarranty` |
+| Important Contacts | `getContacts`, `createContact`, `updateContact`, `deleteContact` |
+| Utility Bills | `getUtilities`, `createUtility`, `updateUtility`, `deleteUtility` |
+| Smart Home Systems | `getSmartHomeSystems`, `createSmartHomeSystem`, `updateSmartHomeSystem`, `deleteSmartHomeSystem` |
+| Emergency Info | `getEmergencyInfos`, `createEmergencyInfo`, `updateEmergencyInfo`, `deleteEmergencyInfo` |
 
-### Sensitive Field Security (Lock Codes + Wi-Fi Password)
+### Sensitive Field Security
 
-```
-GET  /lock-codes/          # code field omitted entirely
-GET  /lock-codes/{id}/     # code field omitted entirely
-POST /lock-codes/{id}/reveal/  # Returns decrypted code; logs access; manager+ only
+`revealLockCode(id)` and `revealWifiPassword(id)`:
+- Requires manager+ role
+- Decrypts field using AES-256
+- Writes an `AccessLog` entry (userId, entityType, entityId, IP, timestamp)
+- Returns `{ value, maskAfter }` where `maskAfter` is `Date.now() + 30_000`
 
-POST /network/{id}/reveal/     # Returns decrypted Wi-Fi password; logs access; manager+ only
-```
-
-Reveal responses include a `mask_after` field (Unix timestamp 30s in the future) so the client knows when to re-mask.
+Standard `getLockCodes` / `getNetworks` responses **never** include encrypted fields.
 
 ---
 
-## Completion Logs
+## Completion Logs (`src/actions/completion-logs.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/completion-logs/` | List logs; filter by `?entity_type=&entity_id=` |
-| POST | `/completion-logs/` | Add log entry |
-| DELETE | `/completion-logs/{id}/` | Delete log entry |
+| Action | Description |
+|--------|-------------|
+| `getCompletionLogs(entityType, entityId)` | List logs for a record; newest first |
+| `createCompletionLog(data)` | Add log entry; recalculates `nextDue` for maintenance |
+| `deleteCompletionLog(id)` | Delete entry; recalculates `nextDue` for maintenance |
 
-Supported `entity_type` values: `maintenance`, `event`, `network`, `warranty`, `contact`, `utility`, `smart_home`, `emergency`, `protocol`
-
----
-
-## Access Logs (Sensitive Data Audit)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/access-logs/` | List access logs; filter by `?home_id=`, `?entity_type=`; owner/admin only |
-
-Read-only — no POST, PATCH, or DELETE.
+Supported `entityType` values: `maintenance` | `event` | `network` | `warranty` | `contact` | `utility` | `smart_home` | `emergency` | `protocol`
 
 ---
 
-## Bulletins
+## Access Logs (`src/actions/activity.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/bulletins/` | List bulletins; filter by `?home_id=` |
-| POST | `/bulletins/` | Create bulletin |
-| GET | `/bulletins/{id}/` | Bulletin detail |
-| PATCH | `/bulletins/{id}/` | Update (author or admin+) |
-| DELETE | `/bulletins/{id}/` | Delete (author or admin+) |
+| Action | Description |
+|--------|-------------|
+| `getAccessLogs(homeId)` | List access logs; owner/admin only |
+
+Read-only — no create, update, or delete.
 
 ---
 
-## Activity Log
+## Activity Log (`src/actions/activity.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/activity/` | List entries; filter by `?home_id=`; newest first |
-| POST | `/activity/` | Add entry |
-| DELETE | `/activity/{id}/` | Delete entry (author or admin+) |
-
----
-
-## Protocols
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/protocols/` | List protocols; filter by `?home_id=`, `?category=` |
-| POST | `/protocols/` | Create protocol |
-| GET | `/protocols/{id}/` | Protocol detail |
-| PATCH | `/protocols/{id}/` | Update protocol |
-| DELETE | `/protocols/{id}/` | Delete protocol |
+| Action | Description |
+|--------|-------------|
+| `getActivityLogs(homeId)` | List entries; newest first |
+| `createActivityLog(data)` | Add entry; parses @mentions and fires notifications |
+| `deleteActivityLog(id)` | Delete entry (author or admin+) |
 
 ---
 
-## Lists (Checklists)
+## Bulletins (`src/actions/bulletins.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/lists/` | List checklists; filter by `?home_id=` |
-| POST | `/lists/` | Create list |
-| GET | `/lists/{id}/` | List detail with items |
-| PATCH | `/lists/{id}/` | Update list title |
-| DELETE | `/lists/{id}/` | Delete list |
-| POST | `/lists/{id}/items/` | Add item |
-| PATCH | `/lists/{id}/items/{item_id}/` | Update item (toggle done, edit text) |
-| DELETE | `/lists/{id}/items/{item_id}/` | Delete item |
+| Action | Description |
+|--------|-------------|
+| `getBulletins(homeId)` | List bulletins |
+| `createBulletin(data)` | Create; notifies all home members |
+| `updateBulletin(id, data)` | Update (author or admin+) |
+| `deleteBulletin(id)` | Delete (author or admin+) |
 
 ---
 
-## Notifications
+## Protocols (`src/actions/protocols.ts`)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/notifications/` | List notifications for current user |
-| PATCH | `/notifications/{id}/read/` | Mark as read |
-| POST | `/notifications/read-all/` | Mark all as read |
+| Action | Description |
+|--------|-------------|
+| `getProtocols(homeId, category?)` | List protocols |
+| `getProtocol(id)` | Single protocol |
+| `createProtocol(data)` | Create protocol |
+| `updateProtocol(id, data)` | Update protocol |
+| `deleteProtocol(id)` | Delete protocol |
 
 ---
 
-## Common Response Codes
+## Lists (`src/actions/lists.ts`)
 
-| Code | Meaning |
-|------|---------|
-| 200 | OK |
-| 201 | Created |
-| 204 | No Content (DELETE) |
-| 400 | Bad Request (validation error) |
-| 401 | Unauthorized (missing/expired token) |
-| 403 | Forbidden (insufficient role) |
-| 404 | Not Found |
-| 429 | Rate Limited |
+| Action | Description |
+|--------|-------------|
+| `getLists(homeId)` | List checklists |
+| `getList(id)` | List detail with items |
+| `createList(data)` | Create list |
+| `updateList(id, data)` | Update title |
+| `deleteList(id)` | Delete list + items |
+| `addListItem(listId, text)` | Add item |
+| `updateListItem(id, data)` | Toggle done / edit text |
+| `deleteListItem(id)` | Delete item |
+
+---
+
+## Notifications (`src/actions/notifications.ts`)
+
+| Action | Description |
+|--------|-------------|
+| `getNotifications()` | Current user's notifications |
+| `markRead(id)` | Mark single notification as read |
+| `markAllRead()` | Mark all as read |
+| `createNotification(data)` | Internal — called by other actions, not directly |
+
+Notification triggers are called synchronously within the relevant action (e.g., `createTask` calls `createNotification` for each assignee).
+
+Daily checks (maintenance overdue, warranty expiry, etc.) run via a Next.js cron route: `GET /api/cron/notifications` — called by Vercel Cron or an external scheduler.

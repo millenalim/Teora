@@ -7,7 +7,6 @@ MiHomes is a centralized estate management platform for teams managing multiple 
 **Name:** MiHomes
 **Target Users:** 4 team members managing 4 homes
 **Platform:** Web (Next.js) → Mobile (React Native, future)
-**Backend:** Django 5 + DRF + SQLite
 
 ---
 
@@ -15,12 +14,13 @@ MiHomes is a centralized estate management platform for teams managing multiple 
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Django 5.1 + Django REST Framework |
-| Database | SQLite |
-| Frontend | Next.js 14 (App Router) + Tailwind CSS |
-| Auth | Django built-in auth (username + password) + JWT (SimpleJWT) |
-| File Storage | Local filesystem / Django media |
-| Hosting | Railway or single VPS |
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Database | SQLite via Prisma ORM |
+| Auth | NextAuth.js (credentials provider) |
+| Styling | Tailwind CSS |
+| File Storage | Local filesystem |
+| Hosting | Vercel or Railway |
 
 ---
 
@@ -386,96 +386,96 @@ Landing page after login:
 ## DEVELOPMENT PHASES
 
 ### Phase 1: Foundation (Week 1)
-- Django project scaffold with split settings
-- SQLite database configuration
-- Custom User model + JWT auth (register, login, refresh, me)
-- Home + HomeMember models
-- Permission system (4-tier roles + HomeFilterMixin)
-- Docker setup (optional)
+- Next.js 14 project scaffold (App Router + TypeScript + Tailwind)
+- Prisma + SQLite setup
+- NextAuth credentials (username + password)
+- User model + auth pages (login, register)
+- Home + HomeMember models + server actions
+- Permission helpers (role checks)
+- Global layout shell (sidebar, topbar, home selector)
 
 ### Phase 2: Task Management + Calendar (Week 2)
-- Task model + CRUD API
-- Kanban board endpoint (grouped by status)
-- Task list endpoint (sortable, filterable)
-- Event model + CRUD API
-- Calendar endpoint (merged tasks + events for a date range)
-- Completion log generic model + API
+- Task + TaskAssignee models + server actions
+- Kanban board UI (drag-and-drop)
+- Task list UI (sortable, filterable)
+- Event model + server actions
+- Calendar page (monthly grid, tasks + events)
+- CompletionLog model + reusable component
 
 ### Phase 3: Estate Features (Weeks 3–4)
-- People app (3 roles, directory, search for @mentions)
-- Vendor app (multi-home tagging)
-- Maintenance app (dynamic status, completion logs, auto next_due)
-- Home info app (all 8 sections)
+- People + Vendor models + server actions + UI
+- Maintenance model + dynamic status + completion logs
+- All 8 home info sections
 - Lock code encryption + masking + access logging
 - Wi-Fi password same security pattern
 
 ### Phase 4: Communication (Week 5)
-- Activity log + @mention parsing
+- Activity log + @mention parsing + UI
 - Bulletin board
 - Protocols + completion log
 - Lists (checklists)
-- Documents (file upload + management)
+- Documents (file upload)
 - Notification system (in-app bell)
 
-### Phase 5: Frontend (Weeks 6–8)
-- Next.js scaffold + auth flow
-- Dashboard layout (sidebar, topbar, home selector)
-- Overview page
-- Tasks page (board + list toggle)
-- Calendar page
-- All section pages
-- Completion log reusable component
-- SecureCode component (mask/reveal/timer/copy)
-
-### Phase 6: Polish + Deploy (Week 9)
+### Phase 5: Polish + Deploy (Week 6)
 - Testing
-- Production settings
-- Deployment config
-- CI/CD
+- Production config
+- Deploy to Vercel or Railway
 
 ---
 
-## DJANGO PROJECT STRUCTURE
+## PROJECT STRUCTURE
 
 ```
 mihomes/
-├── manage.py
-├── requirements.txt
-├── db.sqlite3
+├── prisma/
+│   └── schema.prisma        # Single source of truth for all models
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── login/
+│   │   │   └── register/
+│   │   └── (dashboard)/
+│   │       ├── page.tsx             # Overview
+│   │       ├── tasks/
+│   │       ├── calendar/
+│   │       ├── people/
+│   │       ├── vendors/
+│   │       ├── maintenance/
+│   │       ├── documents/
+│   │       ├── activity/
+│   │       └── homes/[id]/          # Home detail + all 8 sections
+│   ├── actions/                     # Server actions (data mutations)
+│   │   ├── auth.ts
+│   │   ├── homes.ts
+│   │   ├── tasks.ts
+│   │   ├── events.ts
+│   │   ├── people.ts
+│   │   ├── vendors.ts
+│   │   ├── maintenance.ts
+│   │   ├── home-info.ts
+│   │   ├── completion-logs.ts
+│   │   ├── activity.ts
+│   │   ├── bulletins.ts
+│   │   ├── protocols.ts
+│   │   ├── lists.ts
+│   │   ├── documents.ts
+│   │   └── notifications.ts
+│   ├── components/
+│   │   ├── ui/                      # Shared primitives
+│   │   ├── completion-log/          # Reusable CompletionLog widget
+│   │   ├── secure-code/             # SecureCode (mask/reveal/timer/copy)
+│   │   └── home-selector/           # Global property filter
+│   ├── lib/
+│   │   ├── prisma.ts                # Prisma client singleton
+│   │   ├── auth.ts                  # NextAuth config
+│   │   ├── permissions.ts           # Role check helpers
+│   │   └── encryption.ts            # AES-256 for sensitive fields
+│   └── types/                       # Shared TypeScript types
+├── public/
+├── uploads/                         # Uploaded files
 ├── .env
-│
-├── config/
-│   ├── settings/
-│   │   ├── base.py
-│   │   ├── development.py
-│   │   └── production.py
-│   ├── urls.py
-│   └── wsgi.py
-│
-├── apps/
-│   ├── accounts/        # User, auth, permissions
-│   ├── homes/           # Home, HomeMember
-│   ├── tasks/           # Task, TaskAssignee
-│   ├── events/          # Event
-│   ├── people/          # Person (resident/staff/contact)
-│   ├── vendors/         # Vendor, VendorHome
-│   ├── maintenance/     # MaintenanceTask
-│   ├── home_info/       # ServiceProvider, LockCode, InternetInfo,
-│   │                    # Warranty, ImportantContact, Utility,
-│   │                    # SmartHome, EmergencyInfo, AccessLog
-│   ├── activity/        # ActivityLog, ActivityMention
-│   ├── bulletins/       # Bulletin
-│   ├── protocols/       # Protocol
-│   ├── lists/           # List, ListItem
-│   ├── documents/       # Document (file upload)
-│   └── notifications/   # Notification
-│
-├── shared/
-│   ├── models.py        # CompletionLog (polymorphic)
-│   ├── mixins.py        # HomeFilterMixin, TimestampMixin
-│   └── pagination.py
-│
-└── media/               # Uploaded files
+└── package.json
 ```
 
 ---
