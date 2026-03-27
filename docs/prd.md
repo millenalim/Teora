@@ -1,13 +1,13 @@
-# MiHomes — Product Requirements Document v2
+# MiHomes — Product Requirements Document v3
 
 ## Product Vision
 
-MiHomes is a centralized estate management platform for teams managing multiple residential properties. It integrates with Microsoft 365 (Planner, Outlook, SharePoint) and layers purpose-built estate management features on top — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all properties.
+MiHomes is a centralized estate management platform for teams managing multiple residential properties. It provides built-in task management, scheduling, and estate-specific features — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all properties.
 
-**Name:** MiHomes ()
+**Name:** MiHomes
 **Target Users:** 4 team members managing 4 homes
-**Platform:** Web (Next.js) + Mobile (React Native)
-**Backend:** Django 5 + DRF + PostgreSQL + Microsoft Graph API
+**Platform:** Web (Next.js) → Mobile (React Native, future)
+**Backend:** Django 5 + DRF + SQLite
 
 ---
 
@@ -15,68 +15,41 @@ MiHomes is a centralized estate management platform for teams managing multiple 
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Django 5.1 + Django REST Framework 3.15 |
-| Database | PostgreSQL 16 |
-| Real-time | Django Channels + Redis |
-| Task Queue | Celery + Redis |
-| Frontend (Web) | Next.js 14 (App Router) |
-| Frontend (Mobile) | React Native (Expo) |
-| Auth | Microsoft SSO (Azure AD) + JWT |
-| Tasks/Kanban | Microsoft Planner via Graph API |
-| Calendar | Outlook Group Calendar via Graph API |
-| File Storage | SharePoint/OneDrive via Graph API |
-| Hosting | Railway (API) + Vercel (Next.js) |
+| Backend | Django 5.1 + Django REST Framework |
+| Database | SQLite |
+| Frontend | Next.js 14 (App Router) + Tailwind CSS |
+| Auth | Django built-in auth (username + password) + JWT (SimpleJWT) |
+| File Storage | Local filesystem / Django media |
+| Hosting | Railway or single VPS |
 
 ---
 
 ## FEATURE INVENTORY
 
-Everything below maps to what exists in the current dashboard prototype plus confirmed enhancements.
-
 ---
 
-### 1. Microsoft 365 Integration Hub
+### 1. Authentication & Users
 
-#### 1a. Microsoft SSO Authentication
-- Sign in with Microsoft account (Azure AD OAuth 2.0)
-- No separate MiHomes credentials — single sign-on
-- Token management with encrypted storage and auto-refresh
-- Role mapping from M365 group membership
-- Each home maps to an M365 Group (auto-provisioned on home creation)
+#### 1a. Simple Auth
+- Username + password registration and login
+- Django built-in auth with JWT tokens via SimpleJWT
+- Access token (30 min) + refresh token (7 days)
+- No third-party OAuth — straightforward credentials
 
-#### 1b. Microsoft Planner Integration (Tasks + Kanban)
-- **Bidirectional sync**: tasks created in MiHomes appear in Planner and vice versa
-- **Kanban board view** mirroring Planner buckets: To Do, In Progress, Review, Done
-- **Task list view** with sortable columns: subject, start date, end date, priority, status, property, assignees
-- **Active / Completed tabs** for filtering task state
-- Drag-and-drop between kanban columns syncs bucket changes to Planner
-- Multi-assignee support mapped to M365 group members (checkbox selection)
-- Priority levels: High, Medium, Low
-- Optional start date and end date (not required)
-- Task description field
-- Tasks with dates auto-appear on Outlook Group Calendar
-- Filter by home using global property selector
+#### 1b. Role System
+- 4-tier roles per home:
 
-#### 1c. Outlook Group Calendar Integration
-- **Read/write** to the M365 group calendar per home
-- Events created in MiHomes appear in everyone's Outlook automatically
-- Monthly grid calendar view with navigation arrows
-- Events span across all days between start and end date (color-coded by home)
-- Tasks also appear on calendar when dates are set (yellow pins)
-- Clicking an event or task on the calendar opens its edit modal
-- Supports: title, home, assignee, start date (optional), end date (optional), time, notes
-- **Event completion log**: tracks every time the event was completed — date, completed by, cost, notes (see §8 Completion Log Pattern)
-- Prevents scheduling clashes since everyone shares the same Outlook calendar
-- Quick-add buttons for both tasks and events from calendar view
+| Role | View | Edit | Manage members | Delete home |
+|------|------|------|----------------|-------------|
+| Owner | yes | yes | yes | yes |
+| Admin | yes | yes | yes | no |
+| Manager | yes | yes | no | no |
+| Viewer | yes | no | no | no |
 
-#### 1d. SharePoint / OneDrive Integration (Documents)
-- Files upload to the M365 group's SharePoint document library
-- Organized by home and category
-- Categories: Contract, Insurance, Manual, Protocol, Receipt, Tax, Other
-- Table view with sortable columns: title, category, property, link, date
-- Clickable links to open directly in SharePoint/OneDrive
-- File metadata stored in MiHomes DB (title, category, date, notes)
-- Search by title, category, and home
+#### 1c. User Profile
+- Fields: username, email, full name, avatar URL
+- Update name, email, password via profile page
+- All querysets auto-scoped to user's homes via HomeFilterMixin
 
 ---
 
@@ -84,293 +57,426 @@ Everything below maps to what exists in the current dashboard prototype plus con
 
 #### 2a. Home Profiles
 - 4 homes, each with: name, address, square footage, lot size, purpose/description, color tag
-- Each home maps to an M365 Group (auto-provisioned)
 - Overview dashboard cards showing task/vendor/event counts per home
-- Edit home details via modal (name, address, sqft, lot size, purpose)
+- Edit via modal
 
-#### 2b. Home Purpose & Description
-- Each home has a clearly defined purpose (e.g., "Primary residence," "Vacation rental," "Long-term rental," "Under renovation")
-- Visible on overview card, editable by owners/admins
+#### 2b. Home Purpose
+- Each home has a defined purpose (e.g., "Primary residence," "Vacation rental," "Under renovation")
+- Visible on overview card
 
 #### 2c. Global Property Filter
-- Dropdown in top navigation: "All Properties" or select a specific home
-- Filter applies across all views — tasks, calendar, vendors, people, home details, activity log, etc.
+- Dropdown in top nav: "All Properties" or select one home
+- Applies across all views
 
 ---
 
-### 3. People Management
+### 3. Task Management (Built-In)
 
-#### 3a. People Directory
-- Three roles: **Resident**, **Staff**, **Contact**
+#### 3a. Kanban Board View
+- 4 columns: To Do, In Progress, Review, Done
+- Drag-and-drop between columns
+- Each task card shows: title, description preview, home pill (color-coded), priority pill, assignees, date range
+- Filtered by selected home
+
+#### 3b. Task List View
+- Sortable table with columns: subject, start date, end date, priority, status, property, assignees
+- Active / Completed tabs
+- Click any column header to sort
+
+#### 3c. Task Fields
+- Title (required)
+- Description
+- Home (required)
+- Assignees (multi-select from people)
+- Priority: High, Medium, Low
+- Status: To Do, In Progress, Review, Done
+- Start date (optional)
+- End date (optional)
+
+#### 3d. Toggle
+- Switch between Board and List views with a toggle button
+
+---
+
+### 4. Calendar
+
+#### 4a. Monthly Grid View
+- Navigation arrows for month/year
+- Today highlighted
+- Events span across all days between start and end date (color-coded by home)
+- Tasks with dates also appear on calendar (yellow pins)
+- Click any event or task to open edit modal
+
+#### 4b. Events
+- Fields: title, home, assignee, start date (optional), end date (optional), time, notes
+- **Completion log**: tracks every time the event was completed — date, who, cost, notes (see §8)
+
+#### 4c. Quick Add
+- "+ Task" and "+ Event" buttons accessible from calendar view
+
+---
+
+### 5. People Management
+
+#### 5a. People Directory
+- Three roles: Resident, Staff, Contact
 - Filter tabs: All, Resident, Staff, Contact
-- Card grid layout per person
+- Card grid layout
 - Fields: name, role, phone, email, company, home assignment, notes
-- Avatar circle with first initial, color-coded by role (blue = Resident, pink = Staff, green = Contact)
-- Optional link to M365 user account
+- Avatar circle with initial, color-coded by role
 - People feed into: assignee dropdowns, @mention autocomplete, completion log "completed by" fields
-- Edit/delete per person via modal
 
 ---
 
-### 4. Vendor Management
+### 6. Vendor Management
 
-#### 4a. Vendor Directory
-- Card grid layout per vendor
+#### 6a. Vendor Directory
+- Card grid layout
 - Fields: company name, service type, phone, email, website, pricing, quote amount, rating (1–5), notes
-- Multi-home tagging via checkboxes (vendor can serve multiple homes)
+- Multi-home tagging via checkboxes
 - Home pills displayed on card
 - Filter by selected home
-- Edit/delete per vendor via modal
-
-#### 4b. Vendor Comparison (P2)
-- Side-by-side comparison view for vendors of the same service type
-- Compare pricing, quotes, ratings across homes
-- Accessible via `/vendors/compare/?ids=1,2,3`
 
 ---
 
-### 5. Maintenance System
+### 7. Maintenance System
 
-#### 5a. Maintenance Tasks
+#### 7a. Maintenance Tasks
 - Fields: task name, frequency, provider, estimated cost, home, notes
 - Frequency options: Weekly, Bi-Weekly, Monthly, Quarterly, Semi-Annually, Annually, As Needed
 
-#### 5b. Dynamic Status Tracking
-- Auto-calculated status based on `next_due` vs today:
+#### 7b. Dynamic Status Tracking
+- Auto-calculated status based on next_due vs today:
   - **Overdue** (red) — past due
   - **Due Soon** (amber) — within 7 days
   - **On Track** (green) — more than 7 days out
   - **No Schedule** (gray) — no next due date set
 
-#### 5c. Completion Log
-- Each maintenance task has an expandable completion log
-- Log entries: date completed, completed by, cost, notes
-- **Next due date auto-calculates** from last completion date + frequency
-- Reverse chronological display, newest first
-- Individual log entries deletable (recalculates next due on delete)
-
-#### 5d. Planner Auto-Creation (P1)
-- When maintenance task is within 7 days of due: auto-create Planner task in "To Do" bucket
-- Calendar event created on due date
-- Notification sent to assigned team members
-
----
-
-### 6. Home Information Sections (per home)
-
-All sections accessible via pill/tab navigation under "Home Details." Each follows the same CRUD pattern.
-
-#### 6a. Service Providers
-- Fields: name, service type, phone, email, notes
-
-#### 6b. Lock & Access Codes 🔒
-- Fields: location, code/password, type (keypad, smart lock, gate, garage, etc.), notes
-- Codes masked by default; reveal on click with auto-hide after 30 seconds
-- AES-256 encrypted at rest; access logging on every reveal
-- Permission-gated: manager+ only; clipboard copy without visual reveal
-- Codes never returned in standard API responses (`?reveal=true` required)
-
-#### 6c. Internet & Network
-- Fields: provider, account number, plan details, Wi-Fi name, Wi-Fi password, router IP, notes
-- Wi-Fi password follows same security pattern as lock codes
-- Completion log: track service visits, equipment changes
-
-#### 6d. Appliance Warranties
-- Fields: appliance, brand, model, serial number, purchase date, warranty expiration, purchased from, notes
-- Expiration alerts at 30 and 7 days
-- Completion log: track service calls, repairs, claims
-
-#### 6e. Important Contacts
-- Fields: name, type, phone, email, account number, policy number, notes
-- Types: HOA, Home Insurance, Landlord, Property Manager, Mortgage Co., Pest Control, Landscaping, Pool Service, Security Co., Other
-- Completion log: track interactions
-
-#### 6f. Utility Bills
-- Fields: utility type, provider, account number, avg monthly cost, due date, autopay, notes
-- Types: Electric, Gas, Water, Sewer, Trash/Recycling, Internet, Solar, Other
-- Completion log: track payments, rate changes, service calls
-
-#### 6g. Smart Home Systems
-- Fields: system name, app name, hub/bridge model, account email, connected devices, notes
-- Completion log: track firmware updates, device changes, troubleshooting
-
-#### 6h. Emergency Info
-- Fields: item (e.g., "Main water shutoff"), location, details, notes
-- Completion log: track inspections and tests
-
----
-
-### 7. Communication & Collaboration
-
-#### 7a. Bulletin Board
-- Pinned on Overview dashboard
-- Fields: title, content, home, author, date
-- @mentions rendered as colored badges (blue = vendors, pink = people)
-
-#### 7b. Activity Log
-- Timestamped feed per home; real-time via WebSocket
-- @mentions with colored badges
-- Reverse chronological; deletable entries
-- Filtered by global home selector
-
-#### 7c. Protocols
-- Fields: title, category, home, content, linked document, last reviewed date
-- Categories: Emergency, Cleaning, Opening/Closing, Security, Guest, Maintenance, Other
-- Completion log: track reviews and updates
-
-#### 7d. Lists (Checklists)
-- Fields: title, home, items (text + done/not done)
-- Interactive checkboxes; progress indicator ("3/5 done")
-- Use cases: move-in, seasonal prep, shopping, inspection, guest prep
+#### 7c. Completion Log (see §8)
+- Each task has expandable completion log
+- **Next due date auto-calculates** from last completion + frequency
+- Running count of total completions
 
 ---
 
 ### 8. Completion Log Pattern (Cross-Cutting)
 
-Reusable pattern attached to multiple sections.
+Reusable pattern applied across multiple sections.
 
 #### 8a. Standard Log Fields
-- Date, Completed by (dropdown or free text), Cost (optional), Notes (optional)
+Every completion log entry contains:
+- **Date** (date picker)
+- **Completed by** (dropdown of people)
+- **Cost** (optional, free text)
+- **Notes** (optional, free text)
 
 #### 8b. UI Behavior
-- Collapsed by default: "▸ View Log (3)"
-- Expandable inline; add form at top; reverse chronological
+- Collapsed by default: "▸ History (3)" shows count
+- Expandable inline with add form at top
+- Entries in reverse chronological order
 - Each entry individually deletable
+- "+ Log" quick action button always visible
 
-#### 8c. Where Applied
+#### 8c. Applied To
 
 | Section | What the log tracks |
 |---------|-------------------|
-| Maintenance tasks | Completions (auto-calculates next due date) |
+| Maintenance tasks | Completions (auto-calculates next due) |
 | Events | Each time the event occurred |
 | Internet & Network | Service visits, equipment changes |
 | Appliance Warranties | Service calls, repairs, claims |
-| Important Contacts | Calls, meetings, renewals |
+| Important Contacts | Interactions — calls, meetings, renewals |
 | Utility Bills | Payments, rate changes, service calls |
 | Smart Home Systems | Firmware updates, device changes |
-| Emergency Info | Inspections, tests |
-| Protocols | Reviews, updates, training |
+| Emergency Info | Inspections, tests, equipment checks |
+| Protocols | Reviews, updates, training sessions |
 
 #### 8d. Database Design
-```sql
-completion_logs (
-  id            UUID PRIMARY KEY,
-  entity_type   VARCHAR,   -- "maintenance", "event", "warranty", etc.
-  entity_id     UUID,      -- FK to parent record
-  home_id       UUID,      -- FK to homes
-  completed_date DATE,
-  completed_by  UUID,      -- FK to people (nullable)
-  cost          VARCHAR,
-  notes         TEXT,
-  created_at    TIMESTAMPTZ
-  -- INDEX on (entity_type, entity_id)
-)
 ```
+completion_logs
+  - id (INTEGER, auto PK)
+  - entity_type (VARCHAR) — "maintenance", "event", "warranty", etc.
+  - entity_id (INTEGER) — FK to parent record
+  - home_id (INTEGER) — FK to home
+  - completed_date (DATE)
+  - completed_by_id (INTEGER, nullable) — FK to people
+  - cost (VARCHAR, nullable)
+  - notes (TEXT, nullable)
+  - created_at (DATETIME, auto)
+```
+Single table with entity_type + entity_id polymorphic association. Composite index on (entity_type, entity_id).
 
 ---
 
-### 9. Notification System
+### 9. Home Information Sections (per home)
 
-#### 9a. Trigger Events
+All sections under "Home Info" tab with pill/tab navigation. Standard CRUD pattern.
 
-| Trigger | Timing | Action |
-|---------|--------|--------|
-| Maintenance overdue | `next_due < today` | Planner task + notification |
-| Maintenance due soon | within 7 days | Planner task + notification |
-| Warranty expiring | 30 and 7 days before | Notification |
-| Task assigned | Immediately | Notification |
-| Task due soon | 3 days before end_date | Notification |
-| Event reminder | 1 day before start_date | Notification |
-| Bulletin posted | Immediately | Notification to all home members |
-| @mention in activity log | Immediately | Notification to mentioned person |
+#### 9a. Service Providers
+- Fields: name, service type, phone, email, notes
 
-#### 9b. Delivery
-- In-app notification bell with unread badge
-- Real-time push via WebSocket (Django Channels)
-- Outlook Calendar events for maintenance/event reminders
-- (Future) Email digest, mobile push
+#### 9b. Lock & Access Codes 🔒
+- Fields: location, code/password, type (smart lock, keypad, gate, garage, lockbox, other), notes
+- **Security:**
+  - Codes masked by default ("••••••••") in list view
+  - Reveal on click with show/hide toggle
+  - Auto-hide after 30 seconds
+  - Permission-gated: Manager+ can reveal; Viewer sees masked only
+  - Backend: encrypted at rest using django-encrypted-model-fields
+  - Clipboard copy button (copies without revealing visually)
+  - Access logging: every reveal logged (who, what, when) — read-only audit trail
 
-#### 9c. Celery Beat Schedule
-- Daily 8:00 AM — overdue maintenance check
-- Daily 8:15 AM — upcoming events (1 day)
-- Daily 8:30 AM — upcoming task due dates (3 days)
-- Monday 9:00 AM — expiring warranties (30/7 days)
+#### 9c. Internet & Network
+- Fields: provider, account number, plan details, Wi-Fi name, Wi-Fi password, router IP, notes
+- Wi-Fi password follows same security pattern as lock codes
+- **Completion log**: service visits, equipment changes
 
----
+#### 9d. Appliance Warranties
+- Fields: appliance, brand, model, serial number, purchase date, warranty expiration, purchased from, notes
+- **Completion log**: service calls, repairs, warranty claims
 
-### 10. Security
+#### 9e. Important Contacts
+- Fields: name, type (HOA, Insurance, Mortgage, Pest Control, Landscaping, Pool, Security, Other), phone, email, account number, policy number, notes
+- **Completion log**: calls, meetings, renewals
 
-#### 10a. Auth & Roles
-- Microsoft SSO (Azure AD OAuth 2.0); JWT (access: 30 min, refresh: 7 days)
-- 4-tier role system per home:
+#### 9f. Utility Bills
+- Fields: utility type (Electric, Gas, Water, Sewer, Trash, Internet, Solar, Other), provider, account number, avg monthly, due date, autopay (yes/no), notes
+- **Completion log**: payments, rate changes, service calls
 
-| Role | View | Edit | Manage Members | Delete Home |
-|------|------|------|----------------|-------------|
-| Owner | ✓ | ✓ | ✓ | ✓ |
-| Admin | ✓ | ✓ | ✓ | ✗ |
-| Manager | ✓ | ✓ | ✗ | ✗ |
-| Viewer | ✓ | ✗ | ✗ | ✗ |
+#### 9g. Smart Home Systems
+- Fields: system name, app name, hub/bridge, account email, connected devices, notes
+- **Completion log**: firmware updates, device changes, troubleshooting
 
-#### 10b. Sensitive Field Encryption
-- AES-256 at rest; never in standard API responses
-- `?reveal=true` required, triggers access log
-
-#### 10c. Access Logging
-- Every reveal logged: who, what, when, IP, device
-- Read-only log; retained indefinitely; accessible to owners/admins
-
-#### 10d. Auto-Scope Querysets
-- All API queries filtered to requesting user's homes via `HomeFilterMixin`
+#### 9h. Emergency Info
+- Fields: item, location, details, notes
+- **Completion log**: inspections, tests, equipment checks
 
 ---
 
-### 11. Overview Dashboard
+### 10. Communication & Collaboration
 
-- Home summary cards: name, address, purpose, color, task/vendor/event counts
-- Bulletin board section with quick-add
-- Upcoming tasks panel: top 5 non-done tasks, color-coded by home
-- Recent activity panel: last 5 entries with @mention badges
+#### 10a. Bulletin Board
+- Pinned on overview dashboard
+- Fields: title, content, home, author, date
+- Content supports @mentions (rendered as colored badges)
+- Edit/delete per bulletin
+
+#### 10b. Activity Log
+- Timestamped feed per home
+- @mentions auto-highlight: blue for vendors, pink for people
+- Fields: home, author, date, free-text entry
+- Newest first
+- Delete individual entries
+
+#### 10c. Protocols
+- Documented procedures per home
+- Fields: title, category (Emergency, Cleaning, Opening/Closing, Security, Guest, Maintenance, Other), home, content, linked document name, last reviewed date
+- **Completion log**: reviews, updates, training sessions
+
+#### 10d. Lists (Checklists)
+- Standalone checklists per home
+- Fields: title, home, items (text + done state)
+- Interactive checkboxes
+- Progress indicator (3/5 done)
+
+---
+
+### 11. Documents
+- Simple file upload and management per home
+- Fields: title, category (Contract, Insurance, Manual, Protocol, Receipt, Tax, Other), home, file upload, notes, date
+- Store files in Django media directory
+- Table view: title, category, home, date, download link
+
+---
+
+### 12. Notification System
+
+#### 12a. Trigger Events
+
+| Trigger | Timing |
+|---------|--------|
+| Maintenance overdue | next_due < today |
+| Maintenance due soon | next_due within 7 days |
+| Warranty expiring | 30 and 7 days before |
+| Task assigned | Immediately |
+| Task due soon | 3 days before end_date |
+| Event reminder | 1 day before start_date |
+| Bulletin posted | Immediately |
+| @mention in activity | Immediately |
+
+#### 12b. Delivery
+- In-app notification bell with unread badge count
+- Mark as read / mark all as read
+- Future: email digest, mobile push
+
+---
+
+### 13. Security
+
+#### 13a. Auth
+- Username + password with Django auth
+- JWT tokens (30 min access, 7 day refresh)
+- 4-tier role system per home
+
+#### 13b. Sensitive Field Encryption
+- Lock codes and Wi-Fi passwords: encrypted at rest
+- Never in plaintext API responses
+- Explicit reveal action with access logging
+
+#### 13c. Access Log
+- Every reveal of sensitive field logged: who, what, when
+- Read-only — cannot be edited or deleted
+- Accessible to owners/admins under home settings
+
+#### 13d. Auto-Scope
+- All queries filtered to user's homes at ORM level
+- HomeFilterMixin on all viewsets
+
+---
+
+### 14. Overview Dashboard
+
+Landing page after login:
+- Home summary cards (name, address, purpose, task/event/maint counts)
+- Bulletin board section
+- Upcoming tasks panel (top 5 non-done)
+- Recent activity panel (last 5 entries)
 
 ---
 
 ## FUTURE ENHANCEMENTS (P2/P3)
 
-| # | Feature | Priority |
-|---|---------|----------|
-| 12 | Expense tracking & budget dashboard | P2 ⭐ |
-| 13 | Vendor work order system | P2 ⭐ |
-| 14 | Seasonal / recurring task templates | P2 ⭐ |
-| 15 | Key date & renewal tracker | P2 ⭐ |
-| 16 | Global search / quick find | P2 |
-| 17 | Audit trail / change history | P3 |
-| 18 | Property comparison dashboard | P3 |
-| 19 | Guest & visitor management | P3 |
-| 20 | Mobile quick actions | P3 |
+| Priority | Feature |
+|----------|---------|
+| P2 | Expense tracking + budget dashboard |
+| P2 | Vendor work order system |
+| P2 | Seasonal task templates |
+| P2 | Key date & renewal tracker |
+| P2 | Global search / quick find |
+| P3 | Audit trail / change history |
+| P3 | Property comparison dashboard |
+| P3 | Guest & visitor management |
+| P3 | Mobile app (React Native) |
+| P3 | Email notifications |
 
 ---
 
 ## FEATURE PRIORITY MATRIX
 
-| Priority | Feature | Effort | Impact |
-|----------|---------|--------|--------|
-| **P0** | Microsoft SSO + Graph integration | High | Critical |
-| **P0** | Planner sync (tasks + kanban + list) | High | Critical |
-| **P0** | Outlook Calendar sync + completion log | High | Critical |
-| **P0** | Home profiles + global filter | Low | High |
-| **P0** | People management | Medium | High |
-| **P0** | Vendor directory | Medium | High |
-| **P0** | Maintenance + completion logs | Medium | High |
-| **P0** | Home info sections (all 8) | Medium | High |
-| **P0** | Lock code security | Medium | Critical |
-| **P1** | SharePoint document sync | Medium | High |
-| **P1** | Bulletin board + @mentions | Low | Medium |
-| **P1** | Activity log + WebSocket | Medium | High |
-| **P1** | Notification system | Medium | High |
-| **P1** | Protocols + Lists | Low | Medium |
-| **P2** | Expense tracking | High | ⭐ Very High |
-| **P2** | Work order system | Medium | ⭐ Very High |
-| **P2** | Seasonal templates | Medium | ⭐ High |
-| **P2** | Key date tracker | Low | ⭐ High |
+| Priority | Feature | Effort |
+|----------|---------|--------|
+| **P0** | Simple auth (username/password + JWT) | Low |
+| **P0** | Home profiles + purpose + global filter | Low |
+| **P0** | Task management (kanban + list + CRUD) | Medium |
+| **P0** | Calendar (monthly grid + events) | Medium |
+| **P0** | People management | Low |
+| **P0** | Vendor directory | Low |
+| **P0** | Maintenance + status + completion logs | Medium |
+| **P0** | Home info sections (all 8) + completion logs | Medium |
+| **P0** | Lock code security (encryption, masking, access log) | Medium |
+| **P1** | Bulletin board + @mentions | Low |
+| **P1** | Activity log + @mentions | Medium |
+| **P1** | Protocols + completion log | Low |
+| **P1** | Lists (checklists) | Low |
+| **P1** | Documents (file upload) | Low |
+| **P1** | Notification system | Medium |
+
+---
+
+## DEVELOPMENT PHASES
+
+### Phase 1: Foundation (Week 1)
+- Django project scaffold with split settings
+- SQLite database configuration
+- Custom User model + JWT auth (register, login, refresh, me)
+- Home + HomeMember models
+- Permission system (4-tier roles + HomeFilterMixin)
+- Docker setup (optional)
+
+### Phase 2: Task Management + Calendar (Week 2)
+- Task model + CRUD API
+- Kanban board endpoint (grouped by status)
+- Task list endpoint (sortable, filterable)
+- Event model + CRUD API
+- Calendar endpoint (merged tasks + events for a date range)
+- Completion log generic model + API
+
+### Phase 3: Estate Features (Weeks 3–4)
+- People app (3 roles, directory, search for @mentions)
+- Vendor app (multi-home tagging)
+- Maintenance app (dynamic status, completion logs, auto next_due)
+- Home info app (all 8 sections)
+- Lock code encryption + masking + access logging
+- Wi-Fi password same security pattern
+
+### Phase 4: Communication (Week 5)
+- Activity log + @mention parsing
+- Bulletin board
+- Protocols + completion log
+- Lists (checklists)
+- Documents (file upload + management)
+- Notification system (in-app bell)
+
+### Phase 5: Frontend (Weeks 6–8)
+- Next.js scaffold + auth flow
+- Dashboard layout (sidebar, topbar, home selector)
+- Overview page
+- Tasks page (board + list toggle)
+- Calendar page
+- All section pages
+- Completion log reusable component
+- SecureCode component (mask/reveal/timer/copy)
+
+### Phase 6: Polish + Deploy (Week 9)
+- Testing
+- Production settings
+- Deployment config
+- CI/CD
+
+---
+
+## DJANGO PROJECT STRUCTURE
+
+```
+mihomes/
+├── manage.py
+├── requirements.txt
+├── db.sqlite3
+├── .env
+│
+├── config/
+│   ├── settings/
+│   │   ├── base.py
+│   │   ├── development.py
+│   │   └── production.py
+│   ├── urls.py
+│   └── wsgi.py
+│
+├── apps/
+│   ├── accounts/        # User, auth, permissions
+│   ├── homes/           # Home, HomeMember
+│   ├── tasks/           # Task, TaskAssignee
+│   ├── events/          # Event
+│   ├── people/          # Person (resident/staff/contact)
+│   ├── vendors/         # Vendor, VendorHome
+│   ├── maintenance/     # MaintenanceTask
+│   ├── home_info/       # ServiceProvider, LockCode, InternetInfo,
+│   │                    # Warranty, ImportantContact, Utility,
+│   │                    # SmartHome, EmergencyInfo, AccessLog
+│   ├── activity/        # ActivityLog, ActivityMention
+│   ├── bulletins/       # Bulletin
+│   ├── protocols/       # Protocol
+│   ├── lists/           # List, ListItem
+│   ├── documents/       # Document (file upload)
+│   └── notifications/   # Notification
+│
+├── shared/
+│   ├── models.py        # CompletionLog (polymorphic)
+│   ├── mixins.py        # HomeFilterMixin, TimestampMixin
+│   └── pagination.py
+│
+└── media/               # Uploaded files
+```
 
 ---
 
@@ -378,27 +484,11 @@ completion_logs (
 
 | Requirement | Target |
 |-------------|--------|
-| API response time | < 500ms |
-| Page load | < 3s |
-| Availability | 99.5% |
-| Sync latency | < 10s (webhook), < 5 min (polling fallback) |
-| Encryption | AES-256 at rest |
-| Auth tokens | Access: 30 min, Refresh: 7 days |
-| Auto-mask timeout | 30 seconds |
-| Session timeout | 5 min inactivity |
-| Concurrent users | 4 (scalable to 50+) |
-| Browsers | Chrome, Edge, Safari (last 2 versions) |
-
----
-
-## ESTIMATED MONTHLY COSTS
-
-| Service | Cost |
-|---------|------|
-| Railway (Django + Celery) | $10–20 |
-| Railway (PostgreSQL) | $5–10 |
-| Railway (Redis) | $5 |
-| Vercel (Next.js) | $0 |
-| Microsoft 365 (existing) | $0 |
-| Domain (mihomes.app) | $12/yr |
-| **Total** | **~$20–35/mo** |
+| Response time | < 500ms API calls |
+| Database | SQLite (single file, zero config) |
+| Auth | Username/password + JWT |
+| Encryption | AES-256 for sensitive fields |
+| Access control | 4-tier role per home |
+| Auto-mask | 30 seconds for revealed codes |
+| Concurrent users | 4 (SQLite handles this fine) |
+| Browser support | Chrome, Edge, Safari |

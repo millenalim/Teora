@@ -4,41 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**MiHomes** is a centralized estate management platform for teams managing multiple residential properties. It integrates with Microsoft 365 (Planner, Outlook, SharePoint) and layers purpose-built estate management features on top.
+**MiHomes** is a centralized estate management platform for teams managing multiple residential properties. It provides built-in task management, scheduling, and estate-specific features — no external service dependencies.
 
-- **Name origin:** 터 (Korean) — "foundation, ground, site"
 - **Target users:** 4 team members managing 4 homes
-- **Platform:** Web (Next.js) + Mobile (React Native)
-- **Backend:** Django 5 + DRF + PostgreSQL + Microsoft Graph API
+- **Platform:** Web (Next.js) → Mobile (React Native, future)
+- **Backend:** Django 5 + DRF + SQLite
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Django 5.1 + Django REST Framework 3.15 |
-| Database | PostgreSQL 16 |
-| Real-time | Django Channels + Redis |
-| Task Queue | Celery + Redis |
-| Frontend (Web) | Next.js 14 (App Router) |
-| Frontend (Mobile) | React Native (Expo) |
-| Auth | Microsoft SSO (Azure AD) + JWT |
-| Tasks/Kanban | Microsoft Planner via Graph API |
-| Calendar | Outlook Group Calendar via Graph API |
-| File Storage | SharePoint/OneDrive via Graph API |
-| Hosting | Railway (API) + Vercel (Next.js) |
+| Backend | Django 5.1 + Django REST Framework |
+| Database | SQLite |
+| Frontend | Next.js 14 (App Router) + Tailwind CSS |
+| Auth | Username/password + JWT (SimpleJWT) |
+| File Storage | Local filesystem / Django media |
+| Hosting | Railway or single VPS |
 
 ## Repo Structure
 
 ```
 MiHomes/
-├── backend/        # Django project
-├── frontend/       # Next.js project
+├── backend/            # Django project (see Django Project Structure in prd.md)
+├── frontend/           # Next.js project
 ├── docs/
-│   ├── prd.md              # Full product requirements
-│   ├── schema.sql          # PostgreSQL schema
-│   ├── api-endpoints.md    # REST API reference
-│   ├── architecture.md     # System architecture
-│   └── phase-plan.md       # Development phase plan
+│   ├── prd.md          # Full product requirements (v3)
+│   ├── schema.sql      # Database schema
+│   ├── api-endpoints.md
+│   ├── architecture.md
+│   └── phase-plan.md
+├── README.md
 └── CLAUDE.md
 ```
 
@@ -52,14 +47,12 @@ MiHomes/
 
 ## Getting Started
 
-> To be updated once backend/frontend scaffolding is complete.
-
 **Backend (Django):**
 ```bash
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # fill in secrets
+cp .env.example .env
 python manage.py migrate
 python manage.py runserver
 ```
@@ -68,7 +61,7 @@ python manage.py runserver
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local   # fill in secrets
+cp .env.local.example .env.local
 npm run dev
 ```
 
@@ -98,6 +91,4 @@ cd frontend && npm run lint
 - All API querysets are auto-scoped to the requesting user's homes via `HomeFilterMixin`
 - Sensitive fields (lock codes, Wi-Fi passwords) are AES-256 encrypted at rest — never returned in standard API responses
 - Completion logs use a polymorphic pattern: single `completion_logs` table with `entity_type` + `entity_id`
-- Microsoft Graph calls go through a centralized `GraphClient` wrapper in `backend/integrations/graph/`
-- WebSocket consumers live in `backend/apps/realtime/`
-- Celery Beat tasks live in `backend/apps/notifications/tasks.py`
+- Notification triggers live in `backend/apps/notifications/`

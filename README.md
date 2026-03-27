@@ -1,21 +1,19 @@
 # MiHomes
 
-
-
-MiHomes is a centralized estate management platform for teams managing multiple residential properties. It layers purpose-built estate tools on top of Microsoft 365 — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all their homes.
+MiHomes is a centralized estate management platform for teams managing multiple residential properties. It provides built-in task management, scheduling, and estate-specific features — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all their homes.
 
 ---
 
 ## What it does
 
-- **Tasks & Kanban** — bidirectional sync with Microsoft Planner; board and list views
-- **Calendar** — read/write to Outlook Group Calendar; events and tasks in one view
-- **Documents** — upload to SharePoint/OneDrive, organized by home and category
-- **Maintenance** — track recurring tasks with dynamic status (overdue/due soon/on track) and auto-calculated next due dates
+- **Tasks & Kanban** — built-in kanban board and list view with drag-and-drop
+- **Calendar** — monthly grid with events and tasks, color-coded by home
+- **Maintenance** — recurring task tracking with dynamic status and auto-calculated next due dates
 - **Home Info** — secure storage for lock codes, Wi-Fi passwords, appliance warranties, utility bills, smart home systems, emergency info, and more
 - **People & Vendors** — directory of residents, staff, contacts, and service vendors across all homes
-- **Collaboration** — real-time activity log with @mentions, bulletin board, protocols, and checklists
-- **Notifications** — in-app + real-time push alerts for overdue maintenance, expiring warranties, assigned tasks, and more
+- **Collaboration** — activity log with @mentions, bulletin board, protocols, and checklists
+- **Documents** — file upload and management per home
+- **Notifications** — in-app alerts for overdue maintenance, expiring warranties, assigned tasks, and more
 
 ---
 
@@ -23,17 +21,12 @@ MiHomes is a centralized estate management platform for teams managing multiple 
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Django 5.1 + Django REST Framework 3.15 |
-| Database | PostgreSQL 16 |
-| Real-time | Django Channels + Redis |
-| Task Queue | Celery + Redis |
-| Frontend (Web) | Next.js 14 (App Router) |
-| Frontend (Mobile) | React Native (Expo) |
-| Auth | Microsoft SSO (Azure AD) + JWT |
-| Tasks/Kanban | Microsoft Planner via Graph API |
-| Calendar | Outlook Group Calendar via Graph API |
-| File Storage | SharePoint/OneDrive via Graph API |
-| Hosting | Railway (API) + Vercel (Next.js) |
+| Backend | Django 5.1 + Django REST Framework |
+| Database | SQLite |
+| Frontend | Next.js 14 (App Router) + Tailwind CSS |
+| Auth | Username/password + JWT (SimpleJWT) |
+| File Storage | Local filesystem / Django media |
+| Hosting | Railway or single VPS |
 
 ---
 
@@ -45,7 +38,7 @@ MiHomes/
 ├── frontend/           # Next.js project
 ├── docs/
 │   ├── prd.md          # Full product requirements
-│   ├── schema.sql      # PostgreSQL schema
+│   ├── schema.sql      # Database schema
 │   ├── api-endpoints.md
 │   ├── architecture.md
 │   └── phase-plan.md
@@ -57,15 +50,15 @@ MiHomes/
 
 ## Getting Started
 
-> Prerequisites: Python 3.12+, Node 20+, PostgreSQL 16, Redis
+> Prerequisites: Python 3.12+, Node 20+
 
 ### Backend
 
 ```bash
 cd backend
 python -m venv venv && source venv/bin/activate
-pip install -r requirements/development.txt
-cp .env.example .env    # fill in secrets (see below)
+pip install -r requirements.txt
+cp .env.example .env
 python manage.py migrate
 python manage.py runserver
 ```
@@ -82,24 +75,10 @@ npm run dev
 ### Environment Variables
 
 **Backend (`.env`):**
-
 ```
 SECRET_KEY=
-DATABASE_URL=
-REDIS_URL=
-AZURE_AD_CLIENT_ID=
-AZURE_AD_CLIENT_SECRET=
-AZURE_AD_TENANT_ID=
-ENCRYPTION_KEY=          # AES-256 key for sensitive fields
-```
-
-**Frontend (`.env.local`):**
-
-```
-NEXT_PUBLIC_API_URL=
-NEXT_PUBLIC_WS_URL=
-NEXTAUTH_SECRET=
-NEXTAUTH_URL=
+DEBUG=True
+ENCRYPTION_KEY=    # AES-256 key for sensitive fields
 ```
 
 ---
@@ -133,9 +112,8 @@ cd frontend && npm run lint
 
 ## Security Notes
 
-- **Authentication:** Microsoft SSO only (Azure AD OAuth 2.0) — no local passwords
-- **Sensitive fields:** Lock codes and Wi-Fi passwords are AES-256 encrypted at rest and never returned in standard API responses. Decryption requires an explicit `?reveal=true` param, which triggers an immutable access log entry.
-- **Query scoping:** All API queries are automatically filtered to homes the requesting user belongs to via `HomeFilterMixin` — cross-home data leakage is prevented at the ORM level.
+- **Sensitive fields:** Lock codes and Wi-Fi passwords are AES-256 encrypted at rest and never returned in standard API responses. Decryption requires an explicit reveal action, which logs who accessed what and when.
+- **Query scoping:** All API queries are automatically filtered to homes the requesting user belongs to via `HomeFilterMixin`.
 - **Roles:** 4-tier per-home role system — Owner, Admin, Manager, Viewer.
 
 ---
@@ -144,11 +122,11 @@ cd frontend && npm run lint
 
 | Doc | Description |
 |-----|-------------|
-| [docs/prd.md](docs/prd.md) | Full product requirements and feature inventory |
-| [docs/schema.sql](docs/schema.sql) | PostgreSQL schema with all tables and indexes |
-| [docs/api-endpoints.md](docs/api-endpoints.md) | REST API and WebSocket reference |
-| [docs/architecture.md](docs/architecture.md) | System architecture, auth flow, Graph sync strategy |
-| [docs/phase-plan.md](docs/phase-plan.md) | 6-phase, 17-week development plan |
+| [docs/prd.md](docs/prd.md) | Full product requirements (v3) |
+| [docs/schema.sql](docs/schema.sql) | Database schema |
+| [docs/api-endpoints.md](docs/api-endpoints.md) | REST API reference |
+| [docs/architecture.md](docs/architecture.md) | System architecture |
+| [docs/phase-plan.md](docs/phase-plan.md) | 6-phase development plan |
 
 ---
 
@@ -156,9 +134,9 @@ cd frontend && npm run lint
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| 1 | Foundation + Microsoft 365 integration | Not started |
-| 2 | Core estate features | Not started |
-| 3 | Collaboration + notifications | Not started |
-| 4 | Next.js web frontend | Not started |
-| 5 | Enhanced features (P2) | Not started |
-| 6 | Mobile + polish + production | Not started |
+| 1 | Foundation — Django scaffold, auth, homes, permissions | Not started |
+| 2 | Task management + Calendar | Not started |
+| 3 | Estate features — people, vendors, maintenance, home info | Not started |
+| 4 | Communication — activity log, bulletins, protocols, documents | Not started |
+| 5 | Next.js frontend | Not started |
+| 6 | Polish + deploy | Not started |
