@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Teora** is a centralized estate management platform for teams managing multiple residential properties. It integrates with Microsoft 365 (Planner, Outlook, SharePoint) and layers purpose-built estate management features on top.
+**MiHomes** is a centralized estate management platform for teams managing multiple residential properties. It integrates with Microsoft 365 (Planner, Outlook, SharePoint) and layers purpose-built estate management features on top.
 
 - **Name origin:** 터 (Korean) — "foundation, ground, site"
 - **Target users:** 4 team members managing 4 homes
@@ -30,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repo Structure
 
 ```
-Teora/
+MiHomes/
 ├── backend/        # Django project
 ├── frontend/       # Next.js project
 ├── docs/

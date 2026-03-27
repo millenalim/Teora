@@ -1,10 +1,10 @@
-# Teora — Product Requirements Document v2
+# MiHomes — Product Requirements Document v2
 
 ## Product Vision
 
-Teora is a centralized estate management platform for teams managing multiple residential properties. It integrates with Microsoft 365 (Planner, Outlook, SharePoint) and layers purpose-built estate management features on top — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all properties.
+MiHomes is a centralized estate management platform for teams managing multiple residential properties. It integrates with Microsoft 365 (Planner, Outlook, SharePoint) and layers purpose-built estate management features on top — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all properties.
 
-**Name:** Teora (터 — Korean for "foundation, ground, site")
+**Name:** MiHomes ()
 **Target Users:** 4 team members managing 4 homes
 **Platform:** Web (Next.js) + Mobile (React Native)
 **Backend:** Django 5 + DRF + PostgreSQL + Microsoft Graph API
@@ -39,13 +39,13 @@ Everything below maps to what exists in the current dashboard prototype plus con
 
 #### 1a. Microsoft SSO Authentication
 - Sign in with Microsoft account (Azure AD OAuth 2.0)
-- No separate Teora credentials — single sign-on
+- No separate MiHomes credentials — single sign-on
 - Token management with encrypted storage and auto-refresh
 - Role mapping from M365 group membership
 - Each home maps to an M365 Group (auto-provisioned on home creation)
 
 #### 1b. Microsoft Planner Integration (Tasks + Kanban)
-- **Bidirectional sync**: tasks created in Teora appear in Planner and vice versa
+- **Bidirectional sync**: tasks created in MiHomes appear in Planner and vice versa
 - **Kanban board view** mirroring Planner buckets: To Do, In Progress, Review, Done
 - **Task list view** with sortable columns: subject, start date, end date, priority, status, property, assignees
 - **Active / Completed tabs** for filtering task state
@@ -59,7 +59,7 @@ Everything below maps to what exists in the current dashboard prototype plus con
 
 #### 1c. Outlook Group Calendar Integration
 - **Read/write** to the M365 group calendar per home
-- Events created in Teora appear in everyone's Outlook automatically
+- Events created in MiHomes appear in everyone's Outlook automatically
 - Monthly grid calendar view with navigation arrows
 - Events span across all days between start and end date (color-coded by home)
 - Tasks also appear on calendar when dates are set (yellow pins)
@@ -75,7 +75,7 @@ Everything below maps to what exists in the current dashboard prototype plus con
 - Categories: Contract, Insurance, Manual, Protocol, Receipt, Tax, Other
 - Table view with sortable columns: title, category, property, link, date
 - Clickable links to open directly in SharePoint/OneDrive
-- File metadata stored in Teora DB (title, category, date, notes)
+- File metadata stored in MiHomes DB (title, category, date, notes)
 - Search by title, category, and home
 
 ---
@@ -400,5 +400,5 @@ completion_logs (
 | Railway (Redis) | $5 |
 | Vercel (Next.js) | $0 |
 | Microsoft 365 (existing) | $0 |
-| Domain (teora.app) | $12/yr |
+| Domain (mihomes.app) | $12/yr |
 | **Total** | **~$20–35/mo** |

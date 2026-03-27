@@ -1,4 +1,4 @@
-# Teora — System Architecture
+# MiHomes — System Architecture
 
 ---
 
@@ -30,7 +30,7 @@
 │  PostgreSQL 16        │         │  Redis                        │
 │  (Railway)            │         │  (Railway)                    │
 │                       │         │                               │
-│  - All Teora data     │         │  - Django Channels layer      │
+│  - All MiHomes data     │         │  - Django Channels layer      │
 │  - Encrypted fields   │         │  - Celery task queue          │
 │  - Audit logs         │         │  - Session/token cache        │
 └───────────────────────┘         └───────────────────────────────┘
@@ -58,7 +58,7 @@
 ## Directory Structure
 
 ```
-Teora/
+MiHomes/
 ├── backend/
 │   ├── config/
 │   │   ├── settings/
@@ -160,7 +160,7 @@ Django exchanges code for M365 access + refresh tokens
   - User created/updated in users table
         │
         ▼
-Django issues Teora JWT pair (access: 30min, refresh: 7 days)
+Django issues MiHomes JWT pair (access: 30min, refresh: 7 days)
         │
         ▼
 Client stores JWT; includes in Authorization header on all API calls
@@ -185,8 +185,8 @@ Central wrapper around Graph API calls:
 
 | Direction | Mechanism |
 |-----------|-----------|
-| Teora → Graph | Synchronous on write (task created → Planner task created) |
-| Graph → Teora | Webhook subscriptions (Graph POSTs to `/api/v1/webhooks/graph/`) |
+| MiHomes → Graph | Synchronous on write (task created → Planner task created) |
+| Graph → MiHomes | Webhook subscriptions (Graph POSTs to `/api/v1/webhooks/graph/`) |
 | Fallback | Celery periodic task polls Graph every 5 minutes if webhook missed |
 
 ### Webhook Flow
@@ -203,7 +203,7 @@ Django validates notification (subscription ID + client state token)
 Celery task fetches full updated resource from Graph
         │
         ▼
-Teora DB updated; WebSocket broadcast to connected clients
+MiHomes DB updated; WebSocket broadcast to connected clients
 ```
 
 ---
@@ -299,7 +299,7 @@ Managed by Celery Beat (Railway worker):
 | PostgreSQL | Railway | Managed PostgreSQL 16 |
 | Redis | Railway | Managed Redis |
 | Next.js | Vercel | Auto-deploys from `main`; edge-optimized |
-| Domain | teora.app | DNS → Vercel (frontend) + Railway (API) |
+| Domain | mihomes.app | DNS → Vercel (frontend) + Railway (API) |
 
 ### Environment Variables (Backend)
 

@@ -1,4 +1,4 @@
--- Teora PostgreSQL Schema
+-- MiHomes PostgreSQL Schema
 -- PostgreSQL 16
 
 -- Enable UUID extension
@@ -75,7 +75,7 @@ CREATE TABLE people (
     email           VARCHAR(255),
     company         VARCHAR(255),
     notes           TEXT,
-    m365_user_id    UUID REFERENCES users(id) ON DELETE SET NULL,  -- linked Teora/M365 user
+    m365_user_id    UUID REFERENCES users(id) ON DELETE SET NULL,  -- linked MiHomes/M365 user
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

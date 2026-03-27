@@ -1,4 +1,4 @@
-# Teora — API Endpoints Reference
+# MiHomes — API Endpoints Reference
 
 Base URL: `/api/v1/`
 

@@ -1,4 +1,4 @@
-# Teora — Development Phase Plan
+# MiHomes — Development Phase Plan
 
 Total estimated duration: ~17 weeks across 6 phases.
 Each phase ends with a working, deployable increment.
@@ -30,17 +30,17 @@ Each phase ends with a working, deployable increment.
 - [ ] Planner plan auto-creation per home
 - [ ] Task model + `task_assignees`
 - [ ] Planner bidirectional sync:
-  - Create/update/delete in Teora → Planner
-  - Graph webhook → Teora DB update
+  - Create/update/delete in MiHomes → Planner
+  - Graph webhook → MiHomes DB update
   - 5-minute polling fallback (Celery)
 - [ ] Tasks API (`/api/v1/tasks/`) — list, create, update, delete, move
-- [ ] Kanban status mapping: Planner buckets ↔ Teora status enum
+- [ ] Kanban status mapping: Planner buckets ↔ MiHomes status enum
 
 ### Week 3 — Outlook Calendar Sync + Completion Log Core
 - [ ] Event model
 - [ ] Outlook Group Calendar bidirectional sync:
-  - Create/update/delete in Teora → Outlook
-  - Graph webhook → Teora DB update
+  - Create/update/delete in MiHomes → Outlook
+  - Graph webhook → MiHomes DB update
 - [ ] Events API (`/api/v1/events/`)
 - [ ] `completion_logs` table + polymorphic model
 - [ ] Completion Log API (`/api/v1/completion-logs/`)
@@ -219,10 +219,10 @@ Each phase ends with a working, deployable increment.
 - [ ] Load testing (target: < 500ms p95 at 50 concurrent users)
 - [ ] Production Railway deploy (env vars, DB migrations, Celery workers)
 - [ ] Vercel production deploy
-- [ ] Domain setup (teora.app → Vercel + Railway)
+- [ ] Domain setup (mihomes.app → Vercel + Railway)
 - [ ] Monitoring: error tracking (Sentry), uptime alerts
 
-**Phase 6 Deliverable:** Production-ready Teora — web + mobile, tested, secured, deployed.
+**Phase 6 Deliverable:** Production-ready MiHomes — web + mobile, tested, secured, deployed.
 
 ---
 
@@ -240,7 +240,7 @@ Each phase ends with a working, deployable increment.
 | Decision | Rationale |
 |----------|-----------|
 | Single `completion_logs` table (polymorphic) | Avoids 9+ duplicate tables; efficient with composite index |
-| Sync-on-write to Graph | Keeps Teora and M365 immediately consistent; webhook covers reverse direction |
+| Sync-on-write to Graph | Keeps MiHomes and M365 immediately consistent; webhook covers reverse direction |
 | Railway for backend | Simple Docker deploys, managed Postgres + Redis in one platform |
 | Vercel for Next.js | Zero-config, edge-optimized, free tier sufficient |
 | `django-encrypted-model-fields` | Transparent AES-256 without custom query rewrites |

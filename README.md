@@ -1,8 +1,8 @@
-# Teora
+# MiHomes
 
-> 터 (Korean) — *foundation, ground, site*
 
-Teora is a centralized estate management platform for teams managing multiple residential properties. It layers purpose-built estate tools on top of Microsoft 365 — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all their homes.
+
+MiHomes is a centralized estate management platform for teams managing multiple residential properties. It layers purpose-built estate tools on top of Microsoft 365 — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all their homes.
 
 ---
 
@@ -40,7 +40,7 @@ Teora is a centralized estate management platform for teams managing multiple re
 ## Repo Structure
 
 ```
-Teora/
+MiHomes/
 ├── backend/            # Django project
 ├── frontend/           # Next.js project
 ├── docs/
