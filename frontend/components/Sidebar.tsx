@@ -6,8 +6,9 @@ import type { Home } from "@/app/generated/prisma/client"
 
 const NAV = [
   { label: "Overview", href: "/", icon: "⊞" },
-  { label: "Maintenance", href: "/maintenance", icon: "🔧" },
   { label: "Tasks", href: "/tasks", icon: "✓" },
+  { label: "Calendar", href: "/calendar", icon: "◻" },
+  { label: "Maintenance", href: "/maintenance", icon: "🔧" },
   { label: "Vendors", href: "/vendors", icon: "👥" },
   { label: "Documents", href: "/documents", icon: "📄" },
   { label: "Settings", href: "/settings", icon: "⚙" },

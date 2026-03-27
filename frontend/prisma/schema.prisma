@@ -21,7 +21,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships HomeMember[]
+  memberships  HomeMember[]
+  createdTasks Task[]       @relation("TaskCreatedBy")
 
   @@map("users")
 }
@@ -43,7 +44,10 @@ model Home {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members HomeMember[]
+  members        HomeMember[]
+  tasks          Task[]
+  events         Event[]
+  completionLogs CompletionLog[]
 
   @@map("homes")
 }
@@ -61,4 +65,87 @@ model HomeMember {
 
   @@unique([homeId, userId])
   @@map("home_members")
+}
+
+// ─────────────────────────────────────────────
+// TASKS
+// ─────────────────────────────────────────────
+
+// status: todo | inprogress | review | done
+// priority: high | medium | low
+model Task {
+  id          Int      @id @default(autoincrement())
+  homeId      Int
+  title       String
+  description String?
+  status      String   @default("todo")
+  priority    String   @default("medium")
+  startDate   DateTime?
+  endDate     DateTime?
+  createdById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  home      Home           @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  createdBy User?          @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignees TaskAssignee[]
+
+  @@index([homeId, status])
+  @@map("tasks")
+}
+
+model TaskAssignee {
+  id       Int  @id @default(autoincrement())
+  taskId   Int
+  memberId Int  // HomeMember.id
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, memberId])
+  @@map("task_assignees")
+}
+
+// ─────────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────────
+
+model Event {
+  id        Int       @id @default(autoincrement())
+  homeId    Int
+  title     String
+  startDate DateTime?
+  endDate   DateTime?
+  startTime String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([homeId, startDate])
+  @@map("events")
+}
+
+// ─────────────────────────────────────────────
+// COMPLETION LOGS (polymorphic)
+// ─────────────────────────────────────────────
+
+// entityType: maintenance | event | network | warranty | contact |
+//             utility | smart_home | emergency | protocol
+model CompletionLog {
+  id            Int      @id @default(autoincrement())
+  entityType    String
+  entityId      Int
+  homeId        Int
+  completedDate DateTime
+  completedById Int?     // HomeMember.id — resolved to user at read time
+  cost          String?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([homeId])
+  @@map("completion_logs")
 }
