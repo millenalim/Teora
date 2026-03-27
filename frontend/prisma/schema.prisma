@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─────────────────────────────────────────────
+// AUTH & USERS
+// ─────────────────────────────────────────────
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  fullName     String   @default("")
+  avatarUrl    String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships HomeMember[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// HOMES
+// ─────────────────────────────────────────────
+
+model Home {
+  id          Int      @id @default(autoincrement())
+  name        String
+  address     String
+  sqft        Int?
+  lotSize     String?
+  purpose     String?
+  description String?
+  colorTag    String   @default("#6366f1")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members HomeMember[]
+
+  @@map("homes")
+}
+
+// role: owner | admin | manager | viewer
+model HomeMember {
+  id       Int      @id @default(autoincrement())
+  homeId   Int
+  userId   Int
+  role     String   @default("viewer")
+  joinedAt DateTime @default(now())
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([homeId, userId])
+  @@map("home_members")
+}
