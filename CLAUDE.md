@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**MiHomes** is a centralized estate management platform for teams managing multiple residential properties. Built as a single Next.js app — no separate backend, no API layer.
+**Teora** is a centralized estate management platform for teams managing multiple residential properties. Built as a single Next.js app — no separate backend, no API layer.
 
 - **Target users:** 4 team members managing 4 homes
 - **Platform:** Web (Next.js) → Mobile (React Native, future)
@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repo Structure
 
 ```
-mihomes/
+teora/
 ├── prisma/
 │   └── schema.prisma        # All models — single source of truth
 ├── src/

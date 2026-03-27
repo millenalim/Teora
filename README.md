@@ -1,6 +1,6 @@
-# MiHomes
+# Teora
 
-MiHomes is a centralized estate management platform for teams managing multiple residential properties. Built as a single Next.js app — no separate backend, no API layer.
+Teora is a centralized estate management platform for teams managing multiple residential properties. Built as a single Next.js app — no separate backend, no API layer.
 
 ---
 
@@ -33,7 +33,7 @@ MiHomes is a centralized estate management platform for teams managing multiple 
 ## Project Structure
 
 ```
-mihomes/
+teora/
 ├── prisma/schema.prisma     # All models
 ├── src/
 │   ├── app/                 # Pages (App Router)

@@ -1,4 +1,4 @@
-# MiHomes — Development Phase Plan
+# Teora — Development Phase Plan
 
 Total estimated duration: ~6 weeks across 5 phases.
 One codebase, one language (TypeScript), one deployment.
@@ -134,10 +134,10 @@ One codebase, one language (TypeScript), one deployment.
 - [ ] SQLite WAL mode enabled (`PRAGMA journal_mode=WAL`)
 - [ ] Daily SQLite backup (cron → copy `dev.db` to backup location)
 - [ ] Deploy to Vercel or Railway
-- [ ] Domain setup (mihomes.app)
+- [ ] Domain setup (teora.app)
 - [ ] Error tracking (Sentry)
 
-**Phase 5 Deliverable:** Production-ready MiHomes — deployed, monitored, backed up.
+**Phase 5 Deliverable:** Production-ready Teora — deployed, monitored, backed up.
 
 ---
 

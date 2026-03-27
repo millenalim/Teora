@@ -1,10 +1,10 @@
-# MiHomes — Product Requirements Document v3
+# Teora — Product Requirements Document v3
 
 ## Product Vision
 
-MiHomes is a centralized estate management platform for teams managing multiple residential properties. It provides built-in task management, scheduling, and estate-specific features — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all properties.
+Teora is a centralized estate management platform for teams managing multiple residential properties. It provides built-in task management, scheduling, and estate-specific features — giving property teams a single place to organize tasks, people, vendors, maintenance, and critical home information across all properties.
 
-**Name:** MiHomes
+**Name:** Teora
 **Target Users:** 4 team members managing 4 homes
 **Platform:** Web (Next.js) → Mobile (React Native, future)
 
@@ -427,7 +427,7 @@ Landing page after login:
 ## PROJECT STRUCTURE
 
 ```
-mihomes/
+teora/
 ├── prisma/
 │   └── schema.prisma        # Single source of truth for all models
 ├── src/

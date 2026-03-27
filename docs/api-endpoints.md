@@ -1,6 +1,6 @@
-# MiHomes — Server Actions Reference
+# Teora — Server Actions Reference
 
-MiHomes uses Next.js server actions instead of a REST API. Data fetching happens in server components; mutations happen via server actions in `src/actions/`.
+Teora uses Next.js server actions instead of a REST API. Data fetching happens in server components; mutations happen via server actions in `src/actions/`.
 
 All actions verify the session via `auth()` from NextAuth and scope data to the user's homes via `requireHomeMember()`.
 
