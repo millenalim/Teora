@@ -5,137 +5,113 @@
 ## High-Level Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLIENT LAYER                             │
-│                                                                 │
-│   Next.js 14 (Vercel)          React Native / Expo             │
-│   Web Browser                  iOS + Android                    │
-└────────────────────────┬────────────────────────────────────────┘
-                         │ HTTPS / WSS
-┌────────────────────────▼────────────────────────────────────────┐
-│                        API LAYER  (Railway)                     │
-│                                                                 │
-│   Django 5.1 + DRF                Django Channels              │
-│   REST API (/api/v1/)             WebSocket (/ws/)              │
-│                                                                 │
-│   ┌─────────────┐  ┌────────────────┐  ┌──────────────────┐   │
-│   │ Auth        │  │ Business Logic │  │ Graph Client     │   │
-│   │ (Azure AD + │  │ (Viewsets,     │  │ (M365 Planner,  │   │
-│   │  JWT)       │  │  serializers,  │  │  Outlook,       │   │
-│   │             │  │  permissions)  │  │  SharePoint)    │   │
-│   └─────────────┘  └────────────────┘  └──────────────────┘   │
-└────────────┬───────────────────────────────────┬───────────────┘
-             │                                   │
-┌────────────▼──────────┐         ┌──────────────▼───────────────┐
-│  PostgreSQL 16        │         │  Redis                        │
-│  (Railway)            │         │  (Railway)                    │
-│                       │         │                               │
-│  - All MiHomes data     │         │  - Django Channels layer      │
-│  - Encrypted fields   │         │  - Celery task queue          │
-│  - Audit logs         │         │  - Session/token cache        │
-└───────────────────────┘         └───────────────────────────────┘
-             │
-┌────────────▼──────────────────────────────────────────────────┐
-│  Celery Worker + Beat  (Railway)                               │
-│                                                                │
-│  Beat (scheduler):                Worker:                      │
-│  - Daily maintenance checks       - Graph API sync tasks       │
-│  - Warranty expiry alerts         - Notification dispatch      │
-│  - Task due-date alerts           - Planner auto-creation      │
-│  - Weekly key-date checks         - Outlook event creation     │
-└───────────────────────────────────────────────────────────────┘
-             │
-┌────────────▼──────────────────────────────────────────────────┐
-│  Microsoft Graph API (external)                                │
-│                                                                │
-│  Azure AD (auth)    Planner (tasks)    Outlook (calendar)      │
-│  SharePoint (files) Group Mgmt         Webhooks                │
-└───────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                      CLIENT LAYER                       │
+│                                                         │
+│   Next.js 14 (App Router)        React Native (future)  │
+│   Web Browser                    iOS + Android          │
+└────────────────────────┬────────────────────────────────┘
+                         │ HTTPS
+┌────────────────────────▼────────────────────────────────┐
+│                   API LAYER  (Railway / VPS)             │
+│                                                         │
+│   Django 5.1 + DRF                                      │
+│   REST API (/api/v1/)                                   │
+│                                                         │
+│   ┌──────────────┐  ┌─────────────────┐                │
+│   │ Auth         │  │ Business Logic  │                │
+│   │ (SimpleJWT)  │  │ (Viewsets,      │                │
+│   │              │  │  serializers,   │                │
+│   │              │  │  permissions)   │                │
+│   └──────────────┘  └─────────────────┘                │
+└────────────────────────┬────────────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────────┐
+│   SQLite                                                │
+│                                                         │
+│   - All MiHomes data                                    │
+│   - Encrypted sensitive fields                          │
+│   - Audit logs                                          │
+│   - Single file, zero infrastructure                    │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Directory Structure
+## Django Project Structure
 
 ```
-MiHomes/
-├── backend/
-│   ├── config/
-│   │   ├── settings/
-│   │   │   ├── base.py
-│   │   │   ├── development.py
-│   │   │   └── production.py
-│   │   ├── urls.py
-│   │   ├── asgi.py           # Django Channels entry point
-│   │   └── wsgi.py
-│   ├── apps/
-│   │   ├── auth/             # Microsoft SSO, JWT, user model
-│   │   ├── homes/            # Home profiles, memberships
-│   │   ├── people/           # Residents, Staff, Contacts
-│   │   ├── vendors/          # Vendor directory
-│   │   ├── tasks/            # Planner proxy (tasks + kanban)
-│   │   ├── events/           # Outlook Calendar proxy
-│   │   ├── documents/        # SharePoint metadata
-│   │   ├── maintenance/      # Maintenance tasks + scheduling
-│   │   ├── home_info/        # All 8 home info sections
-│   │   │   ├── lock_codes/
-│   │   │   ├── network/
-│   │   │   ├── warranties/
-│   │   │   ├── contacts/
-│   │   │   ├── utilities/
-│   │   │   ├── smart_home/
-│   │   │   ├── emergency/
-│   │   │   └── service_providers/
-│   │   ├── completion_logs/  # Polymorphic completion log
-│   │   ├── bulletins/
-│   │   ├── activity/         # Activity log + WebSocket consumer
-│   │   ├── protocols/
-│   │   ├── lists/
-│   │   ├── notifications/    # Notification model + Celery tasks
-│   │   └── realtime/         # Django Channels consumers
-│   ├── integrations/
-│   │   └── graph/
-│   │       ├── client.py     # Central GraphClient wrapper
-│   │       ├── planner.py    # Planner-specific calls
-│   │       ├── calendar.py   # Outlook calendar calls
-│   │       ├── sharepoint.py # SharePoint/OneDrive calls
-│   │       └── webhooks.py   # Graph webhook registration + handling
-│   ├── core/
-│   │   ├── mixins.py         # HomeFilterMixin, SensitiveFieldMixin
-│   │   ├── permissions.py    # HomeRole permission classes
-│   │   ├── encryption.py     # AES-256 field encryption helpers
-│   │   └── pagination.py
-│   └── requirements/
-│       ├── base.txt
-│       ├── development.txt
-│       └── production.txt
+backend/
+├── manage.py
+├── requirements.txt
+├── db.sqlite3
+├── .env
+├── media/                    # Uploaded files
 │
-├── frontend/
-│   ├── src/
-│   │   ├── app/              # Next.js App Router pages
-│   │   │   ├── (auth)/
-│   │   │   ├── (dashboard)/
-│   │   │   │   ├── page.tsx         # Overview
-│   │   │   │   ├── tasks/
-│   │   │   │   ├── calendar/
-│   │   │   │   ├── vendors/
-│   │   │   │   ├── people/
-│   │   │   │   ├── maintenance/
-│   │   │   │   ├── documents/
-│   │   │   │   ├── homes/[id]/      # Home detail + all sections
-│   │   │   │   └── activity/
-│   │   ├── components/
-│   │   │   ├── ui/                  # Shared primitives
-│   │   │   ├── completion-log/      # Reusable completion log widget
-│   │   │   ├── home-selector/       # Global property filter
-│   │   │   └── ...feature components
-│   │   ├── lib/
-│   │   │   ├── api.ts               # Typed API client
-│   │   │   └── websocket.ts         # WebSocket client
-│   │   └── types/                   # Shared TypeScript types
-│   └── public/
+├── config/
+│   ├── settings/
+│   │   ├── base.py
+│   │   ├── development.py
+│   │   └── production.py
+│   ├── urls.py
+│   └── wsgi.py
 │
-└── docs/
+├── apps/
+│   ├── accounts/             # User model, JWT auth (register/login/me)
+│   ├── homes/                # Home, HomeMember
+│   ├── tasks/                # Task, TaskAssignee
+│   ├── events/               # Event
+│   ├── people/               # Person (resident/staff/contact)
+│   ├── vendors/              # Vendor, VendorHome
+│   ├── maintenance/          # MaintenanceTask (dynamic status, next_due)
+│   ├── home_info/            # ServiceProvider, LockCode, InternetNetwork,
+│   │                         # ApplianceWarranty, ImportantContact, UtilityBill,
+│   │                         # SmartHomeSystem, EmergencyInfo, AccessLog
+│   ├── activity/             # ActivityLog
+│   ├── bulletins/            # Bulletin
+│   ├── protocols/            # Protocol
+│   ├── lists/                # List, ListItem
+│   ├── documents/            # Document (file upload)
+│   └── notifications/        # Notification + trigger logic
+│
+└── shared/
+    ├── models.py             # CompletionLog (polymorphic)
+    ├── mixins.py             # HomeFilterMixin, TimestampMixin
+    └── pagination.py
+```
+
+---
+
+## Frontend Structure
+
+```
+frontend/
+├── src/
+│   ├── app/                  # Next.js App Router
+│   │   ├── (auth)/
+│   │   │   ├── login/
+│   │   │   └── register/
+│   │   └── (dashboard)/
+│   │       ├── page.tsx              # Overview
+│   │       ├── tasks/
+│   │       ├── calendar/
+│   │       ├── people/
+│   │       ├── vendors/
+│   │       ├── maintenance/
+│   │       ├── documents/
+│   │       ├── activity/
+│   │       └── homes/
+│   │           └── [id]/             # Home detail + all 8 info sections
+│   ├── components/
+│   │   ├── ui/                       # Shared primitives (Button, Modal, etc.)
+│   │   ├── completion-log/           # Reusable CompletionLog widget
+│   │   ├── secure-code/              # SecureCode (mask/reveal/timer/copy)
+│   │   ├── home-selector/            # Global property filter dropdown
+│   │   └── ...feature components
+│   ├── lib/
+│   │   └── api.ts                    # Typed API client (fetch wrapper)
+│   └── types/                        # Shared TypeScript types
+└── public/
 ```
 
 ---
@@ -143,67 +119,23 @@ MiHomes/
 ## Authentication Flow
 
 ```
-User clicks "Sign in with Microsoft"
+User submits username + password to POST /api/v1/auth/login/
         │
         ▼
-Django redirects → Azure AD OAuth 2.0 authorization URL
+Django validates credentials via authenticate()
         │
         ▼
-User authenticates with Microsoft credentials
+SimpleJWT issues token pair:
+  - access token  (30 min)
+  - refresh token (7 days)
         │
         ▼
-Azure AD redirects to /auth/microsoft/callback/ with code
+Client stores tokens (httpOnly cookie or memory)
+Includes access token in Authorization: Bearer <token> header
         │
         ▼
-Django exchanges code for M365 access + refresh tokens
-  - Tokens stored encrypted in user_tokens table
-  - User created/updated in users table
-        │
-        ▼
-Django issues MiHomes JWT pair (access: 30min, refresh: 7 days)
-        │
-        ▼
-Client stores JWT; includes in Authorization header on all API calls
-        │
-        ▼
-Client uses refresh token to obtain new access tokens silently
-```
-
----
-
-## Microsoft Graph Integration
-
-### GraphClient (`backend/integrations/graph/client.py`)
-
-Central wrapper around Graph API calls:
-- Manages per-home M365 group context
-- Handles token refresh automatically
-- Retries on 429 (rate limit) with exponential backoff
-- Raises `GraphUnavailableError` on persistent failure (caught at view layer → 503)
-
-### Sync Strategy
-
-| Direction | Mechanism |
-|-----------|-----------|
-| MiHomes → Graph | Synchronous on write (task created → Planner task created) |
-| Graph → MiHomes | Webhook subscriptions (Graph POSTs to `/api/v1/webhooks/graph/`) |
-| Fallback | Celery periodic task polls Graph every 5 minutes if webhook missed |
-
-### Webhook Flow
-```
-Graph detects change (Planner task updated)
-        │
-        ▼
-Graph POSTs change notification to /api/v1/webhooks/graph/
-        │
-        ▼
-Django validates notification (subscription ID + client state token)
-        │
-        ▼
-Celery task fetches full updated resource from Graph
-        │
-        ▼
-MiHomes DB updated; WebSocket broadcast to connected clients
+On 401 response → client calls POST /auth/token/refresh/
+  → new access token issued silently
 ```
 
 ---
@@ -212,80 +144,76 @@ MiHomes DB updated; WebSocket broadcast to connected clients
 
 ### Sensitive Field Encryption
 
-Lock codes and Wi-Fi passwords are encrypted before storage:
+Lock codes and Wi-Fi passwords are encrypted using `django-encrypted-model-fields`:
 
 ```
 Write path:
-  plaintext → AES-256 encryption (Django field) → ciphertext stored in DB
+  plaintext → AES-256 encryption (Django model field) → ciphertext stored in SQLite
 
 Read path (standard):
-  DB ciphertext → field NOT included in serializer output
+  ciphertext field → excluded from serializer output entirely
 
-Read path (reveal=true):
-  DB ciphertext → AES-256 decryption → plaintext in response
-  + access_log entry written
-  + auto-mask timer sent to client (30s)
+Read path (reveal):
+  POST /lock-codes/{id}/reveal/  (manager+ only)
+    → ciphertext → AES-256 decryption → plaintext in response
+    → access_log entry written (user, entity, timestamp, IP)
+    → response includes mask_after timestamp (now + 30s)
 ```
+
+The encryption key is stored in the environment variable `ENCRYPTION_KEY` and never in source code.
 
 ### API Query Scoping
 
-All viewsets inherit `HomeFilterMixin`:
+All viewsets inherit `HomeFilterMixin` from `shared/mixins.py`:
+
 ```python
 def get_queryset(self):
     return super().get_queryset().filter(
         home__memberships__user=self.request.user
     )
 ```
-Prevents any cross-home data leakage at the ORM level.
+
+This prevents cross-home data leakage at the ORM level — a user can only ever see records belonging to homes they are a member of.
 
 ### Role Permission Classes
 
+Defined in `shared/permissions.py`, applied per-action on viewsets:
+
 ```
-IsHomeOwner      → owner only
-IsHomeAdmin      → admin+
-IsHomeManager    → manager+
-IsHomeMember     → viewer+ (any member)
+IsHomeOwner      → owner role only
+IsHomeAdmin      → admin or owner
+IsHomeManager    → manager, admin, or owner
+IsHomeMember     → any member (viewer+)
 ```
 
-Applied per-action on viewsets (`permission_classes` or `get_permissions()`).
+### Access Log (Read-Only Audit)
+
+Every reveal of a lock code or Wi-Fi password writes an `AccessLog` entry with:
+- User ID + username
+- Entity type + entity ID
+- IP address
+- Timestamp
+
+The `AccessLog` model has no update or delete methods exposed — enforced at the viewset level. Accessible to owners and admins under home settings.
 
 ---
 
-## Real-Time (Django Channels)
+## Notification System
 
-```
-Client connects: ws://api/ws/activity/?home_id=<uuid>
-        │
-        ▼
-ActivityConsumer authenticates JWT from query param
-Joins room: f"activity_{home_id}"
-        │
-        ▼
-When new activity log entry saved:
-  → Channel layer broadcasts to room
-  → All connected clients receive event instantly
-```
+Notifications are triggered synchronously at the point of action (no background queue needed at this scale):
 
-Channel layer backend: Redis (Railway).
+| Trigger | When fired |
+|---------|-----------|
+| Task assigned | On task create/update when assignees change |
+| Task due soon | Daily management command at 8:00 AM |
+| Event reminder | Daily management command at 8:00 AM |
+| Maintenance overdue | Daily management command at 8:00 AM |
+| Maintenance due soon | Daily management command at 8:00 AM |
+| Warranty expiring | Daily management command at 8:00 AM |
+| Bulletin posted | On bulletin create |
+| @mention in activity | On activity log create |
 
-WebSocket channels:
-- `activity_{home_id}` — activity log
-- `notifications_{user_id}` — per-user notifications
-- `tasks_{home_id}` — task kanban updates
-
----
-
-## Celery Task Schedule
-
-Managed by Celery Beat (Railway worker):
-
-| Schedule | Task | Action |
-|----------|------|--------|
-| Daily 8:00 AM | `check_overdue_maintenance` | Create notifications + Planner tasks |
-| Daily 8:15 AM | `check_upcoming_events` | Remind assignees (1 day ahead) |
-| Daily 8:30 AM | `check_upcoming_task_due_dates` | Remind assignees (3 days ahead) |
-| Monday 9:00 AM | `check_expiring_warranties` | Alert at 30 and 7 days |
-| Every 5 min | `sync_planner_fallback` | Poll Graph if webhook missed |
+Daily checks run via a Django management command (`python manage.py send_notifications`) scheduled by the host (Railway cron or VPS cron job).
 
 ---
 
@@ -293,33 +221,24 @@ Managed by Celery Beat (Railway worker):
 
 | Component | Platform | Notes |
 |-----------|----------|-------|
-| Django API | Railway | Web service; auto-deploys from `main` |
-| Celery Worker | Railway | Worker service; same Docker image |
-| Celery Beat | Railway | Scheduler service; single instance only |
-| PostgreSQL | Railway | Managed PostgreSQL 16 |
-| Redis | Railway | Managed Redis |
-| Next.js | Vercel | Auto-deploys from `main`; edge-optimized |
-| Domain | mihomes.app | DNS → Vercel (frontend) + Railway (API) |
+| Django API + frontend proxy | Railway or VPS | Single service |
+| SQLite | Same server as Django | Single file, backed up daily |
+| Media files | Same server as Django | Served via Django in dev; nginx in prod |
+| Next.js | Vercel or same VPS | Static export or Node server |
+| Domain | mihomes.app | DNS → hosting provider |
 
 ### Environment Variables (Backend)
 
 ```
-SECRET_KEY
-DATABASE_URL
-REDIS_URL
-AZURE_AD_CLIENT_ID
-AZURE_AD_CLIENT_SECRET
-AZURE_AD_TENANT_ID
-ENCRYPTION_KEY           # AES-256 key for sensitive fields
-ALLOWED_HOSTS
-CORS_ALLOWED_ORIGINS
+SECRET_KEY=
+DEBUG=False
+ENCRYPTION_KEY=          # AES-256 key for sensitive fields
+ALLOWED_HOSTS=
+CORS_ALLOWED_ORIGINS=
 ```
 
 ### Environment Variables (Frontend)
 
 ```
-NEXT_PUBLIC_API_URL
-NEXT_PUBLIC_WS_URL
-NEXTAUTH_SECRET
-NEXTAUTH_URL
+NEXT_PUBLIC_API_URL=
 ```

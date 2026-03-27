@@ -1,228 +1,168 @@
 # MiHomes — Development Phase Plan
 
-Total estimated duration: ~17 weeks across 6 phases.
-Each phase ends with a working, deployable increment.
+Total estimated duration: ~9 weeks across 6 phases.
+Each phase ends with a working, testable increment.
 
 ---
 
-## Phase 1: Foundation + Microsoft Integration (Weeks 1–3)
+## Phase 1: Foundation (Week 1)
 
-**Goal:** Working backend with Microsoft SSO, Planner sync, and Outlook Calendar sync.
+**Goal:** Working Django backend — auth, homes, and permission system.
 
-### Week 1 — Django Scaffold + Auth
 - [ ] Django 5.1 project scaffold with split settings (base / dev / prod)
-- [ ] PostgreSQL connection + initial migrations
-- [ ] Redis connection (Channels + Celery)
-- [ ] Azure AD app registration (OAuth 2.0, required scopes)
-- [ ] Microsoft SSO login flow (`/auth/microsoft/login/` + `/callback/`)
-- [ ] User model + `user_tokens` table (encrypted token storage)
-- [ ] JWT issuance (access: 30 min, refresh: 7 days)
-- [ ] `HomeFilterMixin` + role permission classes
-- [ ] `HomeRole` model + `home_memberships`
-- [ ] Django Channels setup (ASGI + Redis layer)
-- [ ] Celery + Beat setup
-
-### Week 2 — Homes + Planner Sync
+- [ ] SQLite database configuration
+- [ ] Custom User model (username, email, full name, avatar URL)
+- [ ] JWT auth via SimpleJWT: register, login, token refresh, me, logout
 - [ ] Home model + CRUD API (`/api/v1/homes/`)
-- [ ] Home members API (`/homes/{id}/members/`)
-- [ ] M365 Group auto-provisioning on home creation (Graph API)
-- [ ] `GraphClient` wrapper (token refresh, retry, rate-limit handling)
-- [ ] Planner plan auto-creation per home
-- [ ] Task model + `task_assignees`
-- [ ] Planner bidirectional sync:
-  - Create/update/delete in MiHomes → Planner
-  - Graph webhook → MiHomes DB update
-  - 5-minute polling fallback (Celery)
-- [ ] Tasks API (`/api/v1/tasks/`) — list, create, update, delete, move
-- [ ] Kanban status mapping: Planner buckets ↔ MiHomes status enum
+- [ ] HomeMember model + members API (`/homes/{id}/members/`)
+- [ ] 4-tier role system: owner, admin, manager, viewer
+- [ ] `HomeFilterMixin` — auto-scope all querysets to user's homes
+- [ ] Role permission classes: `IsHomeOwner`, `IsHomeAdmin`, `IsHomeManager`, `IsHomeMember`
+- [ ] `TimestampMixin` for created_at / updated_at
+- [ ] `.env` setup + `django-environ` config
 
-### Week 3 — Outlook Calendar Sync + Completion Log Core
-- [ ] Event model
-- [ ] Outlook Group Calendar bidirectional sync:
-  - Create/update/delete in MiHomes → Outlook
-  - Graph webhook → MiHomes DB update
-- [ ] Events API (`/api/v1/events/`)
-- [ ] `completion_logs` table + polymorphic model
-- [ ] Completion Log API (`/api/v1/completion-logs/`)
-- [ ] Graph webhook subscription registration + renewal (Celery task)
-- [ ] Railway deploy: Django + PostgreSQL + Redis (dev environment)
-
-**Phase 1 Deliverable:** Team can log in with Microsoft, create homes linked to M365 Groups, manage tasks synced with Planner, and create events synced with Outlook Calendar.
+**Phase 1 Deliverable:** Can register, login, create homes, add members, assign roles. All API responses scoped to the authenticated user's homes.
 
 ---
 
-## Phase 2: Core Estate Features (Weeks 4–6)
+## Phase 2: Task Management + Calendar (Week 2)
 
-**Goal:** Full estate data management — people, vendors, maintenance, all home info sections, and sensitive field security.
+**Goal:** Full task and event management with kanban, list, and calendar views.
 
-### Week 4 — People + Vendors + Maintenance
+- [ ] Task model + CRUD API (`/api/v1/tasks/`)
+- [ ] TaskAssignee M2M (tasks assigned to People)
+- [ ] Kanban endpoint: tasks grouped by status (`todo`, `inprogress`, `review`, `done`)
+- [ ] Task list endpoint: sortable + filterable (`?status=`, `?priority=`, `?completed=`)
+- [ ] `PATCH /tasks/{id}/move/` — update status (drag-and-drop support)
+- [ ] Event model + CRUD API (`/api/v1/events/`)
+- [ ] Calendar endpoint (`/api/v1/calendar/`) — merged tasks + events for a date range
+- [ ] `CompletionLog` model in `shared/models.py` (polymorphic: entity_type + entity_id)
+- [ ] Completion Log API (`/api/v1/completion-logs/`) — create, list, delete
+- [ ] Completion logs wired to events (track each occurrence)
+
+**Phase 2 Deliverable:** Tasks fully manageable; events created; calendar returns merged view; completion logs working.
+
+---
+
+## Phase 3: Estate Features (Weeks 3–4)
+
+**Goal:** People, vendors, maintenance, all 8 home info sections, and sensitive field security.
+
+### Week 3 — People + Vendors + Maintenance
 - [ ] People model + API (`/api/v1/people/`)
-- [ ] Vendor model + `vendor_homes` M2M + API (`/api/v1/vendors/`)
+- [ ] People mentions endpoint (`/people/mentions/?home_id=&q=`) for @mention autocomplete
+- [ ] Vendor model + VendorHome M2M + API (`/api/v1/vendors/`)
 - [ ] Maintenance task model + API (`/api/v1/maintenance/`)
-- [ ] Dynamic status calculation (`next_due` vs today → overdue/due soon/on track/no schedule)
-- [ ] Completion log wired to maintenance: next_due auto-recalculates on log add/delete
-- [ ] Celery Beat: daily maintenance overdue + due-soon checks
-- [ ] Planner task auto-creation when maintenance due within 7 days
+- [ ] Dynamic status computation: `overdue`, `due_soon`, `on_track`, `no_schedule`
+- [ ] Completion logs wired to maintenance: `next_due` auto-recalculates on log add/delete
+- [ ] Frequency → next_due calculation helper (weekly, biweekly, monthly, etc.)
+- [ ] Daily management command: `check_maintenance` (creates notifications for overdue + due soon)
 
-### Week 5 — Home Info Sections
+### Week 4 — Home Info Sections + Security
 - [ ] Service providers model + API
-- [ ] Lock codes model + API (masked by default; `?reveal=true` path)
-- [ ] AES-256 field encryption (lock codes, Wi-Fi passwords)
-- [ ] `access_logs` table + log-on-reveal logic
-- [ ] Internet & network model + API (Wi-Fi password security same pattern)
-- [ ] Appliance warranties model + API + Celery expiration alerts (30/7 days)
+- [ ] Lock codes model + API (code field excluded from all standard responses)
+- [ ] `POST /lock-codes/{id}/reveal/` — decrypt + return code; write access log; manager+ only
+- [ ] AES-256 field encryption via `django-encrypted-model-fields`
+- [ ] `AccessLog` model — read-only, no update/delete exposed
+- [ ] Internet & network model + API (Wi-Fi password same security pattern)
+- [ ] `POST /network/{id}/reveal/` for Wi-Fi password
+- [ ] Appliance warranties model + API
+- [ ] Daily management command: `check_warranties` (notifications at 30 and 7 days)
 - [ ] Important contacts model + API
 - [ ] Utility bills model + API
 - [ ] Smart home systems model + API
 - [ ] Emergency info model + API
 - [ ] Completion logs wired to all 8 sections
 
-### Week 6 — Documents + Security Polish
-- [ ] Documents model + SharePoint upload API
-- [ ] SharePoint document library provisioning per home (Graph)
-- [ ] `HomeFilterMixin` verified across all viewsets (no cross-home leakage)
-- [ ] Auto-mask: 30s timer on revealed fields (backend sends TTL in response)
-- [ ] Session timeout flag: 5-min inactivity → all reveals invalidated
-- [ ] Role permission enforcement verified across all endpoints
-- [ ] API test coverage for sensitive field paths
-
-**Phase 2 Deliverable:** Complete data management for all estate sections with security controls in place.
+**Phase 3 Deliverable:** All estate data fully manageable; sensitive fields encrypted; access logging in place; maintenance and warranty alerts firing.
 
 ---
 
-## Phase 3: Collaboration + Communication (Weeks 7–8)
+## Phase 4: Communication (Week 5)
 
-**Goal:** Activity log (real-time), bulletins, notifications, protocols, lists.
+**Goal:** Activity log with @mentions, bulletins, protocols, lists, documents, notifications.
 
-### Week 7 — Real-Time Collaboration
-- [ ] Activity log model + API + WebSocket consumer (`activity_{home_id}` channel)
-- [ ] @mention parsing: extract `@Name` → resolve to person/vendor ID → store as structured data
-- [ ] Bulletin board model + API + @mentions
-- [ ] Notification model + in-app notification API
-- [ ] WebSocket consumer for notifications (`notifications_{user_id}` channel)
-- [ ] Celery notification dispatch (triggered by maintenance/warranty/task checks)
-- [ ] Bulletin posted notification + @mention notification triggers
+- [ ] ActivityLog model + API (`/api/v1/activity/`)
+- [ ] @mention parsing: extract `@Name` from content → resolve to Person or Vendor ID → store structured mention data
+- [ ] Bulletin model + API (`/api/v1/bulletins/`) + @mentions
+- [ ] Bulletin posted notification trigger
+- [ ] @mention notification trigger (fire on activity log create)
+- [ ] Protocol model + API (`/api/v1/protocols/`) + completion log
+- [ ] List + ListItem model + API (`/api/v1/lists/`) with toggle-done
+- [ ] Document model + file upload API (`/api/v1/documents/`) — multipart/form-data
+- [ ] Files stored under `media/documents/{home_id}/`
+- [ ] Notification model + API (`/api/v1/notifications/`) — list, mark read, mark all read
+- [ ] Remaining daily management commands: task due-date alerts (3 days), event reminders (1 day)
+- [ ] Access log API (`/api/v1/access-logs/`) — read-only, owner/admin only
 
-### Week 8 — Protocols + Lists + Sync Polish
-- [ ] Protocols model + API + completion log
-- [ ] Lists + list items model + API (toggle done persists immediately)
-- [ ] Celery Beat: task due-date alerts (3 days), event reminders (1 day)
-- [ ] Graph webhook renewal (subscriptions expire every 3 days for some resources)
-- [ ] Error handling: Graph unavailable → queue writes, retry on reconnect
-
-**Phase 3 Deliverable:** Real-time team collaboration, full notification system, all communication features.
+**Phase 4 Deliverable:** Full communication layer; all notifications working; documents uploadable; all backend features complete.
 
 ---
 
-## Phase 4: Next.js Frontend — Web App (Weeks 9–11)
+## Phase 5: Frontend (Weeks 6–8)
 
-**Goal:** Complete web UI connected to the API.
+**Goal:** Complete Next.js web UI connected to the API.
 
-### Week 9 — Auth + Shell + Overview
-- [ ] Next.js 14 project (App Router) setup + Vercel deploy
-- [ ] Microsoft SSO auth flow (MSAL.js or NextAuth with Azure AD provider)
-- [ ] JWT storage + auto-refresh
-- [ ] Global layout: sidebar nav, top bar, global home selector dropdown
-- [ ] Overview dashboard: home summary cards, bulletin board, upcoming tasks, recent activity
-- [ ] Notification bell with unread count badge; notification dropdown
-- [ ] WebSocket client setup (activity + notification channels)
+### Week 6 — Auth + Shell + Overview + Tasks
+- [ ] Next.js 14 project scaffold (App Router) + Tailwind CSS
+- [ ] Auth flow: login page, register page, JWT storage, auto-refresh, protected routes
+- [ ] Global layout: sidebar nav, top bar with global home selector dropdown, notification bell
+- [ ] Overview dashboard: home summary cards, bulletin board, upcoming tasks panel, recent activity panel
+- [ ] Tasks page: Board/List toggle
+- [ ] Kanban board (drag-and-drop columns → PATCH `/tasks/{id}/move/`)
+- [ ] Task list (sortable table, active/completed tabs)
+- [ ] Task create/edit modal
 
-### Week 10 — Tasks + Calendar + Documents + People + Vendors
-- [ ] Kanban board view (drag-and-drop columns → PATCH `/tasks/{id}/move/`)
-- [ ] Task list view (sortable, active/completed tabs)
-- [ ] Task create/edit modal (assignees, dates, priority, description)
-- [ ] Monthly calendar grid view (events + task pins, color-coded by home)
-- [ ] Event create/edit modal with completion log component
-- [ ] Documents table view + upload flow (SharePoint link-out)
+### Week 7 — Calendar + People + Vendors + Maintenance + Documents
+- [ ] Calendar page: monthly grid, tasks as yellow pins, events as color-coded blocks
+- [ ] Event create/edit modal with `CompletionLog` component
 - [ ] People directory (card grid, role filter tabs, add/edit modal)
 - [ ] Vendor directory (card grid, home filter, add/edit modal)
+- [ ] Maintenance page with dynamic status pills
+- [ ] Documents page (table view, upload form, download links)
 
-### Week 11 — Home Details + All Sections + Lock Code UI
-- [ ] Home detail page with section pill navigation
+### Week 8 — Home Info + Communication
+- [ ] Home detail page with pill/tab navigation across all 8 sections
 - [ ] All 8 home info section UIs with add/edit modals
-- [ ] Reusable `CompletionLog` component (collapsed/expanded, add form, entry list)
-- [ ] Lock code UI: masked display, reveal button, 30s auto-hide timer, clipboard copy (no visual reveal)
-- [ ] Wi-Fi password UI (same pattern as lock codes)
-- [ ] Maintenance section UI with dynamic status pills
-- [ ] Activity log UI + @mention rendering (colored badges) + real-time updates
-- [ ] Bulletin board UI + @mentions
-- [ ] Protocols UI + Lists UI with interactive checkboxes
+- [ ] `CompletionLog` reusable component (collapsed "▸ History (3)", expandable, add form, delete per entry)
+- [ ] `SecureCode` component: masked display, reveal button, 30s auto-hide timer, clipboard copy (no visual reveal)
+- [ ] Wi-Fi password UI (same `SecureCode` component)
+- [ ] Activity log page (@mention badge rendering, add entry form)
+- [ ] Bulletin board UI + @mention rendering
+- [ ] Protocols page + Lists (checklists with interactive checkboxes + progress indicator)
+- [ ] Notification dropdown (mark read, mark all read)
+- [ ] Access log page (owner/admin only, under home settings)
 
-**Phase 4 Deliverable:** Fully functional web app — all features usable through the UI.
-
----
-
-## Phase 5: Enhanced Features (Weeks 12–14)
-
-**Goal:** P2 features — expense tracking, work orders, templates, key dates.
-
-### Week 12 — Expense Tracking
-- [ ] Expense model: date, amount, category, vendor, receipt (SharePoint), notes, home
-- [ ] Expense API + frontend table/dashboard view
-- [ ] Budget model per home; alert when approaching limit
-- [ ] Dashboard widgets: monthly spend by home, spend by category, YoY comparison
-- [ ] CSV/Excel export for tax prep
-- [ ] Pull cost data from completion logs (auto-import costs already logged)
-
-### Week 13 — Work Order System + Key Date Tracker
-- [ ] Work order model: vendor, home, status flow, quote/final cost, invoice #
-- [ ] Work order API + status transition logic
-- [ ] SharePoint attachment support (quotes, invoices, photos)
-- [ ] Auto-create Planner task on work order approval
-- [ ] Key date tracker model: category, date, home, notes
-- [ ] Key date API + Celery alerts at 60/30/7 days
-- [ ] Outlook Calendar integration for key dates
-- [ ] Frontend: work order board + key date tracker view
-
-### Week 14 — Seasonal Templates + Vendor Comparison
-- [ ] Task template model: title, task list, home, deploy-to date
-- [ ] Template library (pre-built: Winter Prep, Spring Opening, etc.)
-- [ ] One-click deploy: template → Planner tasks with dates
-- [ ] Vendor comparison view (`/vendors/compare/?ids=...`)
-- [ ] Global search (Postgres full-text search across all models)
-
-**Phase 5 Deliverable:** Full P2 feature set — expense tracking, work orders, seasonal templates, key dates, vendor comparison, global search.
+**Phase 5 Deliverable:** Fully functional web app — all features usable through the UI.
 
 ---
 
-## Phase 6: Mobile + Polish + Deployment (Weeks 15–17)
+## Phase 6: Polish + Deploy (Week 9)
 
-**Goal:** React Native app, audit trail, testing, security audit, production deploy.
+**Goal:** Tested, secure, and deployed to production.
 
-### Week 15 — React Native App
-- [ ] Expo project setup (shared API with web)
-- [ ] Microsoft SSO flow on mobile (MSAL React Native)
-- [ ] Mobile quick actions:
-  - Pull up lock codes + Wi-Fi in 2 taps
-  - Photo + note → activity log entry
-  - Voice-to-task → Planner task
-  - Tap-to-call from vendor/people directory
-- [ ] Core screens: overview, tasks, calendar, maintenance, home info sections
-- [ ] Push notifications (FCM/APNs via Expo)
-- [ ] iOS + Android builds via EAS Build
+- [ ] Backend test suite (Django TestCase; real SQLite DB, no mocks)
+  - Auth endpoints
+  - Home + membership + role permission matrix
+  - Sensitive field reveal + access logging
+  - Completion log + next_due recalculation
+  - Notification triggers
+- [ ] Frontend: component tests + E2E (Playwright)
+- [ ] Security checklist:
+  - No sensitive fields in standard API responses
+  - Cross-home scoping verified for all endpoints
+  - JWT expiry + refresh flow tested
+  - Role permission enforcement tested per endpoint
+  - Encryption at rest verified
+- [ ] Production Django settings (DEBUG=False, ALLOWED_HOSTS, HTTPS, secure cookies)
+- [ ] SQLite WAL mode enabled for concurrent reads
+- [ ] Daily SQLite backup script
+- [ ] Deployment to Railway or VPS
+- [ ] Next.js production build + deploy
+- [ ] Domain setup (mihomes.app)
+- [ ] Error tracking (Sentry)
 
-### Week 16 — Audit Trail + Property Comparison
-- [ ] Audit trail: auto-log all CRUD events (who, what changed, old→new value, when)
-- [ ] Audit trail read-only API + UI (per entity + global view)
-- [ ] Property comparison dashboard (2–4 homes side-by-side, metrics + expense trends)
-- [ ] Guest & visitor management (guest log, access instruction auto-generation)
-
-### Week 17 — Testing + Security Audit + Production
-- [ ] Backend: full test suite (unit + integration; real DB, no mocks)
-- [ ] Frontend: component tests + E2E (Playwright or Cypress)
-- [ ] Security audit:
-  - Verify no sensitive fields in standard API responses
-  - Cross-home query scoping tests
-  - JWT expiry + refresh tests
-  - Role permission matrix tests
-  - Encryption at rest verification
-- [ ] Load testing (target: < 500ms p95 at 50 concurrent users)
-- [ ] Production Railway deploy (env vars, DB migrations, Celery workers)
-- [ ] Vercel production deploy
-- [ ] Domain setup (mihomes.app → Vercel + Railway)
-- [ ] Monitoring: error tracking (Sentry), uptime alerts
-
-**Phase 6 Deliverable:** Production-ready MiHomes — web + mobile, tested, secured, deployed.
+**Phase 6 Deliverable:** Production-ready MiHomes — deployed, tested, monitored.
 
 ---
 
@@ -230,18 +170,18 @@ Each phase ends with a working, deployable increment.
 
 | Label | Meaning |
 |-------|---------|
-| P0 | Launch — must ship in Phases 1–3 |
-| P1 | Core — must ship before Phase 4 frontend |
-| P2 | Enhance — Phase 5 |
-| P3 | Polish — Phase 6 |
+| P0 | Launch — Phases 1–4 (backend) |
+| P1 | Core — Phase 5 (frontend) |
+| P2 | Enhance — post-launch features |
+| P3 | Polish — future nice-to-haves |
 
 ## Tech Decisions Log
 
 | Decision | Rationale |
 |----------|-----------|
-| Single `completion_logs` table (polymorphic) | Avoids 9+ duplicate tables; efficient with composite index |
-| Sync-on-write to Graph | Keeps MiHomes and M365 immediately consistent; webhook covers reverse direction |
-| Railway for backend | Simple Docker deploys, managed Postgres + Redis in one platform |
-| Vercel for Next.js | Zero-config, edge-optimized, free tier sufficient |
+| SQLite over PostgreSQL | Zero infrastructure, zero config, sufficient for 4 concurrent users |
+| SimpleJWT over OAuth | No external dependencies; straightforward username/password to start |
+| Single `completion_logs` table (polymorphic) | Avoids 9+ duplicate tables; efficient with composite index on (entity_type, entity_id) |
 | `django-encrypted-model-fields` | Transparent AES-256 without custom query rewrites |
-| No local passwords | Microsoft SSO only — eliminates credential management entirely |
+| POST reveal endpoint over query param | Cleaner audit trail — a POST is an intentional action, not a side effect of a GET |
+| Django management commands for notifications | No background worker needed at this scale; run via cron |

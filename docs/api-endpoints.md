@@ -2,21 +2,23 @@
 
 Base URL: `/api/v1/`
 
-All endpoints require `Authorization: Bearer <jwt>` unless noted.
-All list endpoints support `?home_id=<uuid>` for filtering (global property selector).
+All endpoints require `Authorization: Bearer <access_token>` unless noted.
+All list endpoints support `?home_id=<id>` for filtering (global property selector).
 Pagination: `?page=1&page_size=20` (default page_size: 20).
 
 ---
 
 ## Auth
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/auth/microsoft/login/` | Redirect to Azure AD OAuth flow |
-| GET | `/auth/microsoft/callback/` | OAuth callback; returns JWT pair |
-| POST | `/auth/token/refresh/` | Refresh access token |
-| GET | `/auth/me/` | Current user profile |
-| POST | `/auth/logout/` | Invalidate refresh token |
+| Method | Path | Description | Auth required |
+|--------|------|-------------|---------------|
+| POST | `/auth/register/` | Register new user | No |
+| POST | `/auth/login/` | Login; returns JWT pair | No |
+| POST | `/auth/token/refresh/` | Refresh access token | No |
+| GET | `/auth/me/` | Current user profile | Yes |
+| PATCH | `/auth/me/` | Update profile (name, email, avatar) | Yes |
+| POST | `/auth/me/password/` | Change password | Yes |
+| POST | `/auth/logout/` | Blacklist refresh token | Yes |
 
 ---
 
@@ -25,7 +27,7 @@ Pagination: `?page=1&page_size=20` (default page_size: 20).
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/homes/` | List all homes for current user |
-| POST | `/homes/` | Create home (owner+ only) |
+| POST | `/homes/` | Create home |
 | GET | `/homes/{id}/` | Home detail |
 | PATCH | `/homes/{id}/` | Update home (admin+ only) |
 | DELETE | `/homes/{id}/` | Delete home (owner only) |
@@ -33,46 +35,52 @@ Pagination: `?page=1&page_size=20` (default page_size: 20).
 | POST | `/homes/{id}/members/` | Add member (admin+ only) |
 | PATCH | `/homes/{id}/members/{user_id}/` | Update member role (admin+ only) |
 | DELETE | `/homes/{id}/members/{user_id}/` | Remove member (admin+ only) |
-| GET | `/homes/{id}/summary/` | Task/vendor/event counts for dashboard card |
+| GET | `/homes/{id}/summary/` | Task/vendor/event/maintenance counts for dashboard card |
 
 ---
 
-## Tasks (Planner proxy)
+## Tasks
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/tasks/` | List tasks; filter by `?home_id=`, `?status=`, `?priority=`, `?completed=` |
-| POST | `/tasks/` | Create task (syncs to Planner) |
+| POST | `/tasks/` | Create task |
 | GET | `/tasks/{id}/` | Task detail |
-| PATCH | `/tasks/{id}/` | Update task (syncs to Planner) |
-| DELETE | `/tasks/{id}/` | Delete task (syncs to Planner) |
-| PATCH | `/tasks/{id}/move/` | Move to bucket/status (kanban drag-drop) |
-| POST | `/tasks/sync/` | Force sync all tasks from Planner (admin+ only) |
+| PATCH | `/tasks/{id}/` | Update task |
+| DELETE | `/tasks/{id}/` | Delete task |
+| PATCH | `/tasks/{id}/move/` | Update status (kanban drag-drop) |
 
 ---
 
-## Events (Outlook Calendar proxy)
+## Events
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/events/` | List events; filter by `?home_id=`, `?month=YYYY-MM` |
-| POST | `/events/` | Create event (syncs to Outlook) |
+| POST | `/events/` | Create event |
 | GET | `/events/{id}/` | Event detail |
-| PATCH | `/events/{id}/` | Update event (syncs to Outlook) |
-| DELETE | `/events/{id}/` | Delete event (syncs to Outlook) |
-| POST | `/events/sync/` | Force sync from Outlook (admin+ only) |
+| PATCH | `/events/{id}/` | Update event |
+| DELETE | `/events/{id}/` | Delete event |
+
+### Calendar endpoint (merged view)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/calendar/` | Tasks + events for a date range; filter by `?home_id=`, `?start=YYYY-MM-DD`, `?end=YYYY-MM-DD` |
+
+Returns a combined list of tasks (with dates) and events, each with a `type` field (`"task"` or `"event"`).
 
 ---
 
-## Documents (SharePoint proxy)
+## Documents
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/documents/` | List documents; filter by `?home_id=`, `?category=` |
-| POST | `/documents/` | Upload file to SharePoint + store metadata |
+| POST | `/documents/` | Upload file + store metadata (multipart/form-data) |
 | GET | `/documents/{id}/` | Document detail |
 | PATCH | `/documents/{id}/` | Update metadata |
-| DELETE | `/documents/{id}/` | Delete from SharePoint + DB |
+| DELETE | `/documents/{id}/` | Delete file + record |
 
 ---
 
@@ -85,6 +93,7 @@ Pagination: `?page=1&page_size=20` (default page_size: 20).
 | GET | `/people/{id}/` | Person detail |
 | PATCH | `/people/{id}/` | Update person |
 | DELETE | `/people/{id}/` | Delete person |
+| GET | `/people/mentions/` | Search for @mention autocomplete (`?home_id=&q=`) |
 
 ---
 
@@ -97,7 +106,6 @@ Pagination: `?page=1&page_size=20` (default page_size: 20).
 | GET | `/vendors/{id}/` | Vendor detail |
 | PATCH | `/vendors/{id}/` | Update vendor |
 | DELETE | `/vendors/{id}/` | Delete vendor |
-| GET | `/vendors/compare/` | Compare vendors (`?ids=uuid1,uuid2,uuid3`) |
 
 ---
 
@@ -107,15 +115,18 @@ Pagination: `?page=1&page_size=20` (default page_size: 20).
 |--------|------|-------------|
 | GET | `/maintenance/` | List tasks; filter by `?home_id=`, `?status=` |
 | POST | `/maintenance/` | Create maintenance task |
-| GET | `/maintenance/{id}/` | Task detail |
+| GET | `/maintenance/{id}/` | Task detail (includes computed `status` field) |
 | PATCH | `/maintenance/{id}/` | Update task |
 | DELETE | `/maintenance/{id}/` | Delete task |
+
+The `status` field is computed on read: `overdue`, `due_soon`, `on_track`, or `no_schedule`.
 
 ---
 
 ## Home Info Sections
 
 All sections follow the same pattern: `GET /`, `POST /`, `GET /{id}/`, `PATCH /{id}/`, `DELETE /{id}/`.
+All support `?home_id=` filtering.
 
 | Section | Base Path |
 |---------|-----------|
@@ -128,15 +139,17 @@ All sections follow the same pattern: `GET /`, `POST /`, `GET /{id}/`, `PATCH /{
 | Smart Home Systems | `/smart-home/` |
 | Emergency Info | `/emergency-info/` |
 
-### Lock Code & Wi-Fi Password Security
+### Sensitive Field Security (Lock Codes + Wi-Fi Password)
 
 ```
-GET  /lock-codes/          # Returns codes masked (code field omitted)
-GET  /lock-codes/{id}/     # Returns code masked by default
-GET  /lock-codes/{id}/?reveal=true  # Returns decrypted code; logs access; manager+ only
+GET  /lock-codes/          # code field omitted entirely
+GET  /lock-codes/{id}/     # code field omitted entirely
+POST /lock-codes/{id}/reveal/  # Returns decrypted code; logs access; manager+ only
 
-GET  /network/{id}/?reveal=true     # Returns decrypted Wi-Fi password; logs access; manager+ only
+POST /network/{id}/reveal/     # Returns decrypted Wi-Fi password; logs access; manager+ only
 ```
+
+Reveal responses include a `mask_after` field (Unix timestamp 30s in the future) so the client knows when to re-mask.
 
 ---
 
@@ -158,7 +171,7 @@ Supported `entity_type` values: `maintenance`, `event`, `network`, `warranty`, `
 |--------|------|-------------|
 | GET | `/access-logs/` | List access logs; filter by `?home_id=`, `?entity_type=`; owner/admin only |
 
-No POST, PATCH, or DELETE — read-only.
+Read-only — no POST, PATCH, or DELETE.
 
 ---
 
@@ -169,8 +182,8 @@ No POST, PATCH, or DELETE — read-only.
 | GET | `/bulletins/` | List bulletins; filter by `?home_id=` |
 | POST | `/bulletins/` | Create bulletin |
 | GET | `/bulletins/{id}/` | Bulletin detail |
-| PATCH | `/bulletins/{id}/` | Update bulletin (author or admin+) |
-| DELETE | `/bulletins/{id}/` | Delete bulletin (author or admin+) |
+| PATCH | `/bulletins/{id}/` | Update (author or admin+) |
+| DELETE | `/bulletins/{id}/` | Delete (author or admin+) |
 
 ---
 
@@ -181,8 +194,6 @@ No POST, PATCH, or DELETE — read-only.
 | GET | `/activity/` | List entries; filter by `?home_id=`; newest first |
 | POST | `/activity/` | Add entry |
 | DELETE | `/activity/{id}/` | Delete entry (author or admin+) |
-
-Real-time updates pushed via WebSocket: `ws://api/ws/activity/?home_id=<uuid>`
 
 ---
 
@@ -221,18 +232,6 @@ Real-time updates pushed via WebSocket: `ws://api/ws/activity/?home_id=<uuid>`
 | PATCH | `/notifications/{id}/read/` | Mark as read |
 | POST | `/notifications/read-all/` | Mark all as read |
 
-Real-time push via WebSocket: `ws://api/ws/notifications/`
-
----
-
-## WebSocket Channels
-
-| Channel | URL | Events |
-|---------|-----|--------|
-| Activity log | `ws://api/ws/activity/?home_id=<uuid>` | `activity.created`, `activity.deleted` |
-| Notifications | `ws://api/ws/notifications/` | `notification.new` |
-| Task sync | `ws://api/ws/tasks/?home_id=<uuid>` | `task.updated`, `task.created`, `task.deleted` |
-
 ---
 
 ## Common Response Codes
@@ -247,4 +246,3 @@ Real-time push via WebSocket: `ws://api/ws/notifications/`
 | 403 | Forbidden (insufficient role) |
 | 404 | Not Found |
 | 429 | Rate Limited |
-| 503 | Microsoft Graph unavailable |
