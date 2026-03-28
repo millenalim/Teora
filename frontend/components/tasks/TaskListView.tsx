@@ -1,10 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { Task, User, Home, HomeMember } from "@/app/generated/prisma/client"
-
-type TaskWithRelations = Task & { createdBy: User | null; assignees: { id: number; memberId: number }[] }
-type HomeWithMembers = Home & { members: (HomeMember & { user: User })[] }
+import type { HomeWithMembers, TaskWithRelations } from "@/types"
 
 const STATUS_LABEL: Record<string, string> = {
   todo: "To Do",

@@ -1,13 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import type { Task, HomeMember, User, Home } from "@/app/generated/prisma/client"
+import type { HomeWithMembers, TaskWithRelations } from "@/types"
 import KanbanBoard from "./KanbanBoard"
 import TaskListView from "./TaskListView"
 import TaskModal from "./TaskModal"
-
-type TaskWithRelations = Task & { createdBy: User | null; assignees: { id: number; memberId: number }[] }
-type HomeWithMembers = Home & { members: (HomeMember & { user: User })[] }
 
 type View = "kanban" | "list"
 

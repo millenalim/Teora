@@ -23,6 +23,7 @@ model User {
 
   memberships  HomeMember[]
   createdTasks Task[]       @relation("TaskCreatedBy")
+  accessLogs   AccessLog[]
 
   @@map("users")
 }
@@ -44,10 +45,22 @@ model Home {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members        HomeMember[]
-  tasks          Task[]
-  events         Event[]
-  completionLogs CompletionLog[]
+  members          HomeMember[]
+  tasks            Task[]
+  events           Event[]
+  people           Person[]
+  vendorHomes      VendorHome[]
+  maintenanceTasks MaintenanceTask[]
+  serviceProviders ServiceProvider[]
+  lockCodes        LockCode[]
+  networks         InternetNetwork[]
+  warranties       ApplianceWarranty[]
+  contacts         ImportantContact[]
+  utilities        UtilityBill[]
+  smartHomeSystems SmartHomeSystem[]
+  emergencyInfos   EmergencyInfo[]
+  completionLogs   CompletionLog[]
+  accessLogs       AccessLog[]
 
   @@map("homes")
 }
@@ -68,23 +81,83 @@ model HomeMember {
 }
 
 // ─────────────────────────────────────────────
+// PEOPLE
+// ─────────────────────────────────────────────
+
+// role: resident | staff | contact
+model Person {
+  id        Int      @id @default(autoincrement())
+  homeId    Int
+  name      String
+  role      String   @default("contact")
+  phone     String?
+  email     String?
+  company   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  home           Home           @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  taskAssignees  TaskAssignee[]
+  completionLogs CompletionLog[]
+  eventAssignees Event[]
+
+  @@index([homeId])
+  @@map("people")
+}
+
+// ─────────────────────────────────────────────
+// VENDORS
+// ─────────────────────────────────────────────
+
+model Vendor {
+  id          Int      @id @default(autoincrement())
+  companyName String
+  serviceType String?
+  phone       String?
+  email       String?
+  website     String?
+  pricing     String?
+  rating      Int?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vendorHomes VendorHome[]
+
+  @@map("vendors")
+}
+
+model VendorHome {
+  id       Int @id @default(autoincrement())
+  vendorId Int
+  homeId   Int
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  home   Home   @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, homeId])
+  @@map("vendor_homes")
+}
+
+// ─────────────────────────────────────────────
 // TASKS
 // ─────────────────────────────────────────────
 
 // status: todo | inprogress | review | done
 // priority: high | medium | low
 model Task {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   homeId      Int
   title       String
   description String?
-  status      String   @default("todo")
-  priority    String   @default("medium")
+  status      String    @default("todo")
+  priority    String    @default("medium")
   startDate   DateTime?
   endDate     DateTime?
   createdById Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   home      Home           @relation(fields: [homeId], references: [id], onDelete: Cascade)
   createdBy User?          @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -95,13 +168,14 @@ model Task {
 }
 
 model TaskAssignee {
-  id       Int  @id @default(autoincrement())
+  id       Int @id @default(autoincrement())
   taskId   Int
-  memberId Int  // HomeMember.id
+  personId Int
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
-  @@unique([taskId, memberId])
+  @@unique([taskId, personId])
   @@map("task_assignees")
 }
 
@@ -110,20 +184,188 @@ model TaskAssignee {
 // ─────────────────────────────────────────────
 
 model Event {
-  id        Int       @id @default(autoincrement())
-  homeId    Int
-  title     String
-  startDate DateTime?
-  endDate   DateTime?
-  startTime String?
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id         Int       @id @default(autoincrement())
+  homeId     Int
+  title      String
+  assigneeId Int?
+  startDate  DateTime?
+  endDate    DateTime?
+  startTime  String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  home     Home    @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  assignee Person? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@index([homeId, startDate])
   @@map("events")
+}
+
+// ─────────────────────────────────────────────
+// MAINTENANCE
+// ─────────────────────────────────────────────
+
+// frequency: daily | weekly | biweekly | monthly | quarterly | semiannually | annually | as_needed
+model MaintenanceTask {
+  id            Int       @id @default(autoincrement())
+  homeId        Int
+  taskName      String
+  frequency     String    @default("as_needed")
+  provider      String?
+  estimatedCost String?
+  notes         String?
+  nextDue       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@map("maintenance_tasks")
+}
+
+// ─────────────────────────────────────────────
+// HOME INFO SECTIONS
+// ─────────────────────────────────────────────
+
+model ServiceProvider {
+  id          Int      @id @default(autoincrement())
+  homeId      Int
+  name        String
+  serviceType String?
+  phone       String?
+  email       String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("service_providers")
+}
+
+// lockType: smart_lock | keypad | gate | garage | lockbox | other
+model LockCode {
+  id            Int      @id @default(autoincrement())
+  homeId        Int
+  location      String
+  codeEncrypted String
+  lockType      String   @default("other")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("lock_codes")
+}
+
+model InternetNetwork {
+  id                    Int      @id @default(autoincrement())
+  homeId                Int
+  provider              String?
+  accountNumber         String?
+  planDetails           String?
+  wifiName              String?
+  wifiPasswordEncrypted String?
+  routerIp              String?
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("internet_networks")
+}
+
+model ApplianceWarranty {
+  id             Int       @id @default(autoincrement())
+  homeId         Int
+  appliance      String
+  brand          String?
+  model          String?
+  serialNumber   String?
+  purchaseDate   DateTime?
+  warrantyExpiry DateTime?
+  purchasedFrom  String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("appliance_warranties")
+}
+
+// contactType: hoa | insurance | mortgage | pest_control | landscaping | pool | security | other
+model ImportantContact {
+  id            Int      @id @default(autoincrement())
+  homeId        Int
+  name          String
+  contactType   String   @default("other")
+  phone         String?
+  email         String?
+  accountNumber String?
+  policyNumber  String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("important_contacts")
+}
+
+// utilityType: electric | gas | water | sewer | trash | internet | solar | other
+model UtilityBill {
+  id             Int      @id @default(autoincrement())
+  homeId         Int
+  utilityType    String
+  provider       String?
+  accountNumber  String?
+  avgMonthlyCost String?
+  dueDate        String?
+  autopay        Boolean  @default(false)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("utility_bills")
+}
+
+model SmartHomeSystem {
+  id               Int      @id @default(autoincrement())
+  homeId           Int
+  systemName       String
+  appName          String?
+  hubModel         String?
+  accountEmail     String?
+  connectedDevices String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("smart_home_systems")
+}
+
+model EmergencyInfo {
+  id        Int      @id @default(autoincrement())
+  homeId    Int
+  item      String
+  location  String?
+  details   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@map("emergency_info")
 }
 
 // ─────────────────────────────────────────────
@@ -138,14 +380,36 @@ model CompletionLog {
   entityId      Int
   homeId        Int
   completedDate DateTime
-  completedById Int?     // HomeMember.id — resolved to user at read time
+  completedById Int?
   cost          String?
   notes         String?
   createdAt     DateTime @default(now())
 
-  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  home        Home    @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  completedBy Person? @relation(fields: [completedById], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
   @@index([homeId])
   @@map("completion_logs")
+}
+
+// ─────────────────────────────────────────────
+// ACCESS LOG (read-only audit — no update/delete actions)
+// ─────────────────────────────────────────────
+
+// entityType: lock_code | wifi_password
+model AccessLog {
+  id         Int      @id @default(autoincrement())
+  homeId     Int
+  userId     Int
+  entityType String
+  entityId   Int
+  accessedAt DateTime @default(now())
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@index([userId])
+  @@map("access_logs")
 }

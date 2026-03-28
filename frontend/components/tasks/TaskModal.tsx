@@ -1,11 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import type { Task, User, Home, HomeMember } from "@/app/generated/prisma/client"
+import type { HomeWithMembers, TaskWithRelations } from "@/types"
 import { createTask, updateTask, deleteTask } from "@/actions/tasks"
-
-type TaskWithRelations = Task & { createdBy: User | null; assignees: { id: number; memberId: number }[] }
-type HomeWithMembers = Home & { members: (HomeMember & { user: User })[] }
 
 export default function TaskModal({
   homes,

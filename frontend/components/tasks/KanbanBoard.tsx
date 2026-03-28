@@ -13,11 +13,8 @@ import {
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import type { Task, User, Home, HomeMember } from "@/app/generated/prisma/client"
+import type { HomeWithMembers, TaskWithRelations } from "@/types"
 import { moveTask } from "@/actions/tasks"
-
-type TaskWithRelations = Task & { createdBy: User | null; assignees: { id: number; memberId: number }[] }
-type HomeWithMembers = Home & { members: (HomeMember & { user: User })[] }
 
 const COLUMNS: { id: string; label: string }[] = [
   { id: "todo", label: "To Do" },
