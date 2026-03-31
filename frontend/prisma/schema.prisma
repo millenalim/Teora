@@ -21,9 +21,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships  HomeMember[]
-  createdTasks Task[]       @relation("TaskCreatedBy")
-  accessLogs   AccessLog[]
+  memberships    HomeMember[]
+  createdTasks   Task[]        @relation("TaskCreatedBy")
+  accessLogs     AccessLog[]
+  activityLogs   ActivityLog[]
+  bulletins      Bulletin[]    @relation("BulletinAuthor")
+  uploadedDocs   Document[]
+  notifications  Notification[]
+  createdLists   List[]
 
   @@map("users")
 }
@@ -61,6 +66,11 @@ model Home {
   emergencyInfos   EmergencyInfo[]
   completionLogs   CompletionLog[]
   accessLogs       AccessLog[]
+  activityLogs     ActivityLog[]
+  bulletins        Bulletin[]
+  protocols        Protocol[]
+  lists            List[]
+  documents        Document[]
 
   @@map("homes")
 }
@@ -412,4 +422,133 @@ model AccessLog {
   @@index([homeId])
   @@index([userId])
   @@map("access_logs")
+}
+
+// ─────────────────────────────────────────────
+// PHASE 4: COMMUNICATION + NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+// entityType: task | event | maintenance | person | vendor | bulletin | protocol | list | document
+// mentions: JSON string — [{type:"person"|"vendor", id:Int, name:String}]
+model ActivityLog {
+  id         Int      @id @default(autoincrement())
+  homeId     Int
+  userId     Int
+  action     String
+  entityType String?
+  entityId   Int?
+  mentions   String?
+  createdAt  DateTime @default(now())
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@index([userId])
+  @@map("activity_logs")
+}
+
+model Bulletin {
+  id        Int      @id @default(autoincrement())
+  homeId    Int
+  authorId  Int
+  title     String
+  body      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  home   Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  author User @relation("BulletinAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@map("bulletins")
+}
+
+// steps: JSON string — string[]
+model Protocol {
+  id        Int      @id @default(autoincrement())
+  homeId    Int
+  title     String
+  category  String?
+  steps     String   @default("[]")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@map("protocols")
+}
+
+model List {
+  id          Int      @id @default(autoincrement())
+  homeId      Int
+  createdById Int?
+  title       String
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  home      Home       @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  createdBy User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  items     ListItem[]
+
+  @@index([homeId])
+  @@map("lists")
+}
+
+model ListItem {
+  id        Int      @id @default(autoincrement())
+  listId    Int
+  text      String
+  checked   Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([listId])
+  @@map("list_items")
+}
+
+model Document {
+  id           Int      @id @default(autoincrement())
+  homeId       Int
+  uploadedById Int?
+  title        String
+  filename     String
+  originalName String
+  mimeType     String?
+  sizeBytes    Int?
+  category     String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  home       Home  @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([homeId])
+  @@map("documents")
+}
+
+// type: maintenance_due | warranty_expiring | task_due | event_reminder | bulletin | mention
+model Notification {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  homeId     Int?
+  type       String
+  title      String
+  body       String?
+  entityType String?
+  entityId   Int?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
 }

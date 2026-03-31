@@ -8,12 +8,12 @@ export default function CompletionLogSection({
   homeId,
   entityType,
   entityId,
-  initialLogs,
+  initialLogs = [],
 }: {
   homeId: number
   entityType: string
   entityId: number
-  initialLogs: CompletionLog[]
+  initialLogs?: CompletionLog[]
 }) {
   const [logs, setLogs] = useState(initialLogs)
   const [expanded, setExpanded] = useState(false)

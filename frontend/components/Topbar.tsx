@@ -2,13 +2,26 @@
 
 import { useState } from "react"
 import { logout } from "@/actions/auth"
+import NotificationBell from "@/components/NotificationBell"
+import type { Notification } from "@/app/generated/prisma/client"
+
 type TopbarUser = { name?: string | null; email?: string | null; image?: string | null }
 
-export default function Topbar({ user }: { user: TopbarUser }) {
+export default function Topbar({
+  user,
+  unreadCount,
+  notifications,
+}: {
+  user: TopbarUser
+  unreadCount: number
+  notifications: Notification[]
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <header className="h-14 flex-shrink-0 bg-white border-b border-gray-200 flex items-center justify-end px-6">
+    <header className="h-14 flex-shrink-0 bg-white border-b border-gray-200 flex items-center justify-end gap-3 px-6">
+      <NotificationBell initialCount={unreadCount} initialNotifications={notifications} />
+
       <div className="relative">
         <button
           onClick={() => setMenuOpen((v) => !v)}

@@ -1,12 +1,21 @@
 import { getHomes } from "@/actions/homes"
+import { getBulletins } from "@/actions/bulletins"
 import HomeCard from "@/components/HomeCard"
+import BulletinsBoard from "@/components/bulletins/BulletinsBoard"
+import type { HomeWithMembers } from "@/types"
 import Link from "next/link"
 
 export default async function OverviewPage() {
-  const homes = await getHomes()
+  const homes = (await getHomes()) as HomeWithMembers[]
+
+  // Fetch bulletins for all homes in parallel
+  const bulletinsByHome = await Promise.all(homes.map((h) => getBulletins(h.id)))
+  const allBulletins = bulletinsByHome
+    .flat()
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">My Homes</h1>
@@ -35,11 +44,15 @@ export default async function OverviewPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {homes.map((home) => (
-            <HomeCard key={home.id} home={home} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {homes.map((home) => (
+              <HomeCard key={home.id} home={home} />
+            ))}
+          </div>
+
+          <BulletinsBoard homes={homes} initialBulletins={allBulletins} />
+        </>
       )}
     </div>
   )

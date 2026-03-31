@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import type {
-  Home, HomeMember, User,
+  Home, HomeMember, User, AccessLog,
   ServiceProvider, LockCode, InternetNetwork,
   ApplianceWarranty, ImportantContact, UtilityBill,
   SmartHomeSystem, EmergencyInfo,
@@ -15,13 +15,14 @@ import ContactsTab from "./tabs/ContactsTab"
 import UtilitiesTab from "./tabs/UtilitiesTab"
 import SmartHomeTab from "./tabs/SmartHomeTab"
 import EmergencyTab from "./tabs/EmergencyTab"
+import AccessLogTab from "./tabs/AccessLogTab"
 
 type HomeWithMembers = Home & { members: (HomeMember & { user: User })[] }
-
 type LockCodeSafe = Omit<LockCode, "codeEncrypted">
 type NetworkSafe = Omit<InternetNetwork, "wifiPasswordEncrypted">
+type AccessLogWithUser = AccessLog & { user: { id: number; username: string; fullName: string } }
 
-const TABS = [
+const BASE_TABS = [
   { id: "providers", label: "Service Providers" },
   { id: "locks", label: "Lock Codes" },
   { id: "network", label: "Network & Wi-Fi" },
@@ -42,6 +43,8 @@ export default function HomeDetailClient({
   utilities,
   smartHomeSystems,
   emergencyInfos,
+  accessLogs,
+  isAdmin,
 }: {
   home: HomeWithMembers
   serviceProviders: ServiceProvider[]
@@ -52,7 +55,10 @@ export default function HomeDetailClient({
   utilities: UtilityBill[]
   smartHomeSystems: SmartHomeSystem[]
   emergencyInfos: EmergencyInfo[]
+  accessLogs: AccessLogWithUser[]
+  isAdmin: boolean
 }) {
+  const tabs = isAdmin ? [...BASE_TABS, { id: "access", label: "Access Log" }] : BASE_TABS
   const [tab, setTab] = useState("providers")
 
   return (
@@ -74,7 +80,7 @@ export default function HomeDetailClient({
       {/* Tab nav */}
       <div className="border-b border-gray-200 overflow-x-auto">
         <div className="flex gap-0 min-w-max">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -100,6 +106,7 @@ export default function HomeDetailClient({
         {tab === "utilities" && <UtilitiesTab homeId={home.id} initialData={utilities} />}
         {tab === "smart" && <SmartHomeTab homeId={home.id} initialData={smartHomeSystems} />}
         {tab === "emergency" && <EmergencyTab homeId={home.id} initialData={emergencyInfos} />}
+        {tab === "access" && isAdmin && <AccessLogTab logs={accessLogs} />}
       </div>
     </div>
   )
