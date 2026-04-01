@@ -15,6 +15,18 @@ const MONTH_NAMES = [
 ]
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
 
+function normalizeDate(d: Date | string): Date {
+  const date = new Date(d)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+type TaskSegment = {
+  task: TaskWithHome
+  isStart: boolean
+  isEnd: boolean
+}
+
 export default function CalendarClient({
   homes,
   events: initialEvents,
@@ -36,9 +48,8 @@ export default function CalendarClient({
 
   const firstDay = new Date(year, month - 1, 1)
   const daysInMonth = new Date(year, month, 0).getDate()
-  const startDow = firstDay.getDay() // 0=Sun
+  const startDow = firstDay.getDay()
 
-  // Build a 6-week grid
   const cells: (number | null)[] = [
     ...Array(startDow).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
@@ -53,18 +64,36 @@ export default function CalendarClient({
     router.push(`/calendar?year=${y}&month=${m}`)
   }
 
-  function getItemsForDay(day: number) {
-    const date = new Date(year, month - 1, day)
-    const dayStr = date.toDateString()
+  function getItemsForDay(day: number): { events: EventWithHome[]; tasks: TaskSegment[] } {
+    const cell = normalizeDate(new Date(year, month - 1, day))
 
     const dayEvents = events.filter((e) => {
       if (!e.startDate) return false
-      return new Date(e.startDate).toDateString() === dayStr
+      return normalizeDate(e.startDate).getTime() === cell.getTime()
     })
-    const dayTasks = tasks.filter((t) => {
-      if (!t.endDate) return false
-      return new Date(t.endDate).toDateString() === dayStr
-    })
+
+    const dayTasks: TaskSegment[] = tasks
+      .map((t) => {
+        const start = t.startDate ? normalizeDate(t.startDate) : null
+        const end = t.endDate ? normalizeDate(t.endDate) : null
+
+        // Must have at least one bound
+        if (!start && !end) return null
+
+        // Use start as lower bound, end as upper bound
+        // If only endDate, treat it as a single-day task on that day
+        const lower = start ?? end!
+        const upper = end ?? start!
+
+        if (cell < lower || cell > upper) return null
+
+        return {
+          task: t,
+          isStart: cell.getTime() === lower.getTime(),
+          isEnd: cell.getTime() === upper.getTime(),
+        }
+      })
+      .filter(Boolean) as TaskSegment[]
 
     return { events: dayEvents, tasks: dayTasks }
   }
@@ -169,6 +198,7 @@ export default function CalendarClient({
 
             const { events: dayEvents, tasks: dayTasks } = getItemsForDay(day)
             const isToday = new Date(year, month - 1, day).toDateString() === todayStr
+            const col = i % 7 // 0=Sun … 6=Sat
 
             return (
               <div
@@ -184,13 +214,11 @@ export default function CalendarClient({
                   {day}
                 </span>
 
+                {/* Events — single day, colored by home */}
                 {dayEvents.slice(0, 2).map((ev) => (
                   <div
                     key={ev.id}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openEdit(ev)
-                    }}
+                    onClick={(e) => { e.stopPropagation(); openEdit(ev) }}
                     className="text-[11px] px-1.5 py-0.5 rounded mb-0.5 truncate font-medium text-white cursor-pointer"
                     style={{ backgroundColor: ev.home.colorTag }}
                   >
@@ -198,14 +226,31 @@ export default function CalendarClient({
                   </div>
                 ))}
 
-                {dayTasks.slice(0, 2).map((t) => (
-                  <div
-                    key={t.id}
-                    className="text-[11px] px-1.5 py-0.5 rounded mb-0.5 truncate bg-gray-100 text-gray-600"
-                  >
-                    ✓ {t.title}
-                  </div>
-                ))}
+                {/* Tasks — spanning, colored by home */}
+                {dayTasks.slice(0, 2).map(({ task: t, isStart, isEnd }) => {
+                  const isSingle = isStart && isEnd
+                  // Extend to cell edges for multi-day tasks
+                  const edgeClass = isSingle
+                    ? "rounded mx-0"
+                    : isStart
+                    ? `rounded-l -mr-1.5 ${col === 6 ? "rounded-r" : ""}`
+                    : isEnd
+                    ? `rounded-r -ml-1.5 ${col === 0 ? "rounded-l" : ""}`
+                    : `-mx-1.5 rounded-none`
+
+                  return (
+                    <div
+                      key={t.id}
+                      title={t.title}
+                      className={`text-[11px] py-0.5 mb-0.5 font-medium text-white overflow-hidden whitespace-nowrap ${edgeClass}`}
+                      style={{ backgroundColor: t.home.colorTag, opacity: 0.85 }}
+                    >
+                      {isStart && (
+                        <span className="px-1.5">✓ {t.title}</span>
+                      )}
+                    </div>
+                  )
+                })}
 
                 {dayEvents.length + dayTasks.length > 4 && (
                   <div className="text-[10px] text-gray-400 px-1">
