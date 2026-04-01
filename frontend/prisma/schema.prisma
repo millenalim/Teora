@@ -156,18 +156,21 @@ model VendorHome {
 
 // status: todo | inprogress | review | done
 // priority: high | medium | low
+// recurrence: none | daily | weekly | biweekly | monthly | yearly
 model Task {
-  id          Int       @id @default(autoincrement())
-  homeId      Int
-  title       String
-  description String?
-  status      String    @default("todo")
-  priority    String    @default("medium")
-  startDate   DateTime?
-  endDate     DateTime?
-  createdById Int?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                Int       @id @default(autoincrement())
+  homeId            Int
+  title             String
+  description       String?
+  status            String    @default("todo")
+  priority          String    @default("medium")
+  startDate         DateTime?
+  endDate           DateTime?
+  recurrence        String?
+  recurrenceEndDate DateTime?
+  createdById       Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   home      Home           @relation(fields: [homeId], references: [id], onDelete: Cascade)
   createdBy User?          @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

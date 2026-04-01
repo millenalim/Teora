@@ -35,6 +35,8 @@ export async function createTask(data: {
   priority?: string
   startDate?: Date
   endDate?: Date
+  recurrence?: string
+  recurrenceEndDate?: Date
 }) {
   const session = await requireSession()
   const userId = parseInt(session.user.id)
@@ -59,6 +61,8 @@ export async function updateTask(
     priority?: string
     startDate?: Date | null
     endDate?: Date | null
+    recurrence?: string | null
+    recurrenceEndDate?: Date | null
   }
 ) {
   const session = await requireSession()

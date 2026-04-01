@@ -51,8 +51,25 @@ export async function getCalendarData(homeIds: number[], year: number, month: nu
         homeId: { in: homeIds },
         status: { not: "done" },
         OR: [
-          { endDate: { gte: start, lte: end } },
-          { startDate: { gte: start, lte: end } },
+          // Non-recurring: anchor date falls within month
+          { endDate: { gte: start, lte: end }, recurrence: null },
+          { startDate: { gte: start, lte: end }, endDate: null, recurrence: null },
+          // Recurring: anchor date is before end of month AND (no recurrenceEndDate OR recurrenceEndDate >= start of month)
+          {
+            recurrence: { not: null },
+            OR: [
+              { endDate: { lte: end } },
+              { startDate: { lte: end } },
+            ],
+            AND: [
+              {
+                OR: [
+                  { recurrenceEndDate: null },
+                  { recurrenceEndDate: { gte: start } },
+                ],
+              },
+            ],
+          },
         ],
       },
       include: { home: { select: { id: true, name: true, colorTag: true } } },

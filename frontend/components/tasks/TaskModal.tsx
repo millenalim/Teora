@@ -32,6 +32,7 @@ export default function TaskModal({
     const form = new FormData(e.currentTarget)
 
     try {
+      const recurrenceVal = form.get("recurrence") as string
       const data = {
         title: form.get("title") as string,
         description: (form.get("description") as string) || undefined,
@@ -39,6 +40,8 @@ export default function TaskModal({
         priority: form.get("priority") as string,
         startDate: form.get("startDate") ? new Date(form.get("startDate") as string) : undefined,
         endDate: form.get("endDate") ? new Date(form.get("endDate") as string) : undefined,
+        recurrence: recurrenceVal || undefined,
+        recurrenceEndDate: form.get("recurrenceEndDate") ? new Date(form.get("recurrenceEndDate") as string) : undefined,
       }
 
       let saved: TaskWithRelations
@@ -166,6 +169,33 @@ export default function TaskModal({
                 name="endDate"
                 type="date"
                 defaultValue={task?.endDate ? new Date(task.endDate).toISOString().slice(0, 10) : ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Recurrence</label>
+              <select
+                name="recurrence"
+                defaultValue={(task as any)?.recurrence ?? ""}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">None</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Repeat until</label>
+              <input
+                name="recurrenceEndDate"
+                type="date"
+                defaultValue={(task as any)?.recurrenceEndDate ? new Date((task as any).recurrenceEndDate).toISOString().slice(0, 10) : ""}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
